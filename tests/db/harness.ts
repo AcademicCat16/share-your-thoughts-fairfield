@@ -188,7 +188,9 @@ export class TestDb {
 
 async function pgCtlPath(): Promise<string | null> {
   try {
-    const mod = process.platform === 'win32' ? await import('@embedded-postgres/windows-x64') : null
+    // Platform package exists only on Windows installs; a variable specifier keeps the type-checker from requiring it elsewhere.
+    const winPkg: string = '@embedded-postgres/windows-x64'
+    const mod = process.platform === 'win32' ? ((await import(winPkg)) as { pg_ctl: string }) : null
     return mod ? mod.pg_ctl : null
   } catch { return null }
 }
