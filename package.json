@@ -1,0 +1,45 @@
+{
+  "name": "fairfield-feedback-classroom",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Fairfield Interactive World — The Feedback Classroom: a Thanksgiving peer-feedback activity.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -p tsconfig.json && vite build",
+    "preview": "vite preview --port 4310 --strictPort",
+    "test": "node --test tests/unit/*.test.ts",
+    "test:db": "node --test --test-concurrency=1 tests/db/*.test.ts",
+    "test:e2e": "node tests/e2e/run.mjs",
+    "import-roster": "node scripts/import-roster.ts",
+    "check-urls": "node scripts/check-urls.ts",
+    "access-codes": "node scripts/generate-access-codes.ts",
+    "live-sql": "node scripts/build-live-sql.ts",
+    "check:publish": "node scripts/check-publish.mjs"
+  },
+  "dependencies": {
+    "@fontsource/fredoka": "5.3.0",
+    "@fontsource/nunito": "5.3.0",
+    "@react-three/drei": "10.7.9",
+    "@react-three/fiber": "9.8.2",
+    "@supabase/supabase-js": "2.118.0",
+    "fflate": "0.8.3",
+    "lucide-react": "1.56.0",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "three": "0.170.0"
+  },
+  "devDependencies": {
+    "@types/node": "24.10.1",
+    "@types/react": "19.2.2",
+    "@types/react-dom": "19.2.2",
+    "@types/three": "0.170.0",
+    "@vitejs/plugin-react": "6.1.1",
+    "bcryptjs": "3.0.3",
+    "embedded-postgres": "17.11.0-beta.19",
+    "pg": "8.23.1",
+    "playwright-core": "1.63.0",
+    "typescript": "5.9.3",
+    "vite": "8.3.4"
+  }
+}

@@ -1,0 +1,12 @@
+node_modules/
+dist/
+# The exam workbook holds more than the public roster; it never goes to the public repo.
+*.xlsx
+# Access codes and anything instructor-private.
+private/
+.env
+.env.*
+!.env.example
+tests/output/
+.pg-test/
+*.log

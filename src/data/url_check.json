@@ -1,0 +1,152 @@
+{
+  "checkedAt": "2026-11-19T23:34:05.375Z",
+  "checked": 35,
+  "failed": 0,
+  "results": {
+    "s01-02": {
+      "httpStatus": 200,
+      "ok": true
+    },
+    "s01-04": {
+      "httpStatus": 200,
+      "ok": true
+    },
+    "s01-05": {
+      "httpStatus": 200,
+      "ok": true,
+      "finalUrl": "https://catherinepetrie.github.io/cupcake-decorating-simulator/"
+    },
+    "s01-07": {
+      "httpStatus": 200,
+      "ok": true
+    },
+    "s01-08": {
+      "httpStatus": 200,
+      "ok": true
+    },
+    "s01-10": {
+      "httpStatus": 200,
+      "ok": true
+    },
+    "s01-12": {
+      "httpStatus": 200,
+      "ok": true
+    },
+    "s01-13": {
+      "httpStatus": 200,
+      "ok": true
+    },
+    "s01-14": {
+      "httpStatus": 200,
+      "ok": true
+    },
+    "s01-15": {
+      "httpStatus": 200,
+      "ok": true
+    },
+    "s01-16": {
+      "httpStatus": 200,
+      "ok": true
+    },
+    "s01-17": {
+      "httpStatus": 200,
+      "ok": true
+    },
+    "s01-18": {
+      "httpStatus": 200,
+      "ok": true
+    },
+    "s01-21": {
+      "httpStatus": 200,
+      "ok": true
+    },
+    "s01-24": {
+      "httpStatus": 200,
+      "ok": true
+    },
+    "s01-26": {
+      "httpStatus": 200,
+      "ok": true,
+      "finalUrl": "https://sydneymoncher-ops.github.io/boba-flavor-lab/"
+    },
+    "s01-27": {
+      "httpStatus": 200,
+      "ok": true
+    },
+    "s01-28": {
+      "httpStatus": 200,
+      "ok": true
+    },
+    "s02-01": {
+      "httpStatus": 200,
+      "ok": true
+    },
+    "s02-02": {
+      "httpStatus": 200,
+      "ok": true
+    },
+    "s02-04": {
+      "httpStatus": 200,
+      "ok": true,
+      "finalUrl": "https://carysbrowne24-dot.github.io/cook-in-3d/"
+    },
+    "s02-05": {
+      "httpStatus": 200,
+      "ok": true
+    },
+    "s02-10": {
+      "httpStatus": 200,
+      "ok": true
+    },
+    "s02-11": {
+      "httpStatus": 200,
+      "ok": true
+    },
+    "s02-12": {
+      "httpStatus": 200,
+      "ok": true
+    },
+    "s02-14": {
+      "httpStatus": 200,
+      "ok": true
+    },
+    "s02-15": {
+      "httpStatus": 200,
+      "ok": true
+    },
+    "s02-16": {
+      "httpStatus": 200,
+      "ok": true,
+      "finalUrl": "https://julialevesquee.github.io/Interactive-World/dist/"
+    },
+    "s02-17": {
+      "httpStatus": 200,
+      "ok": true
+    },
+    "s02-18": {
+      "httpStatus": 200,
+      "ok": true,
+      "finalUrl": "https://kaitlyncoakley.github.io/Spin-The-Globe/"
+    },
+    "s02-20": {
+      "httpStatus": 200,
+      "ok": true
+    },
+    "s02-21": {
+      "httpStatus": 200,
+      "ok": true
+    },
+    "s02-23": {
+      "httpStatus": 200,
+      "ok": true
+    },
+    "s02-24": {
+      "httpStatus": 200,
+      "ok": true
+    },
+    "s02-26": {
+      "httpStatus": 200,
+      "ok": true
+    }
+  }
+}

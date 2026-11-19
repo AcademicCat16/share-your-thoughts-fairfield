@@ -1,0 +1,71 @@
+# Test, build and publish The Feedback Classroom to GitHub Pages on every push to main.
+# One-time repository setting: Settings → Pages → Build and deployment → Source: "GitHub Actions".
+# The site builds in DEMO mode unless the repository variable VITE_FEEDBACK_MODE is set to "live"
+# (plus VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY) — see supabase/SETUP.md before doing that.
+name: Test and deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      VITE_FEEDBACK_MODE: ${{ vars.VITE_FEEDBACK_MODE }}
+      VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Unit tests (roster, creatures, comment wording, rules engine)
+        run: npm test
+      - name: Database tests (live-mode SQL on a local Postgres 17 with Supabase stand-ins)
+        run: npm run test:db
+      - name: Type-check and build
+        run: npm run build
+      - name: Publication safety check
+        run: npm run check:publish
+      - name: End-to-end tests (Chrome)
+        run: npm run test:e2e
+        env:
+          E2E_CHANNEL: chrome
+      - name: Keep e2e screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-screenshots
+          path: tests/output/e2e/
+          if-no-files-found: ignore
+      - name: Upload site
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
