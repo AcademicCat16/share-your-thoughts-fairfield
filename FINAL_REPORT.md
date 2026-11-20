@@ -109,6 +109,7 @@ the site stays in Demo mode and says so.
 | `npm run test:db` | **32 / 32 pass** | Live-mode SQL on a throw-away **local Postgres 17 with Supabase stand-ins** (roles, `auth.uid()`, `auth.jwt()`). Covers: lockdown, access codes and lockout, every submit rule, concurrent 4th-comment and reviewer-cap races, recommendation, instructor gating, migration re-run. **Not run against a real Supabase project.** |
 | `npm run test:e2e` | **17 / 17 pass** | Real Chrome against the production build; see the list below |
 | `npm run check:publish` | **pass** | 105 files scanned |
+| GitHub Actions (Linux) | **pass** | the same unit, database and end-to-end suites, plus build and publication check, re-run in CI |
 
 The 17 end-to-end scenarios:
 * welcome screen and banner;
@@ -151,14 +152,26 @@ dashboard. That inspection found and fixed 5 problems the tests had missed:
 ## 10. GitHub commit and deployment status
 
 * Repository: https://github.com/AcademicCat16/share-your-thoughts-fairfield (was empty; first push).
-* Commit: `0d6243c` on `main`.
+* Commits on `main`: `0d6243c` (application), `e3493a3` (CI fix: the first run failed the type-check on Linux because
+  of a Windows-only test package), then this report.
 * Workflow: `.github/workflows/deploy.yml` runs the unit, database and browser tests, the build and the safety
   check, then deploys to Pages.
-* CI and deployment result: **DEPLOY_STATUS_PLACEHOLDER**
+* CI run for `e3493a3` (GitHub Actions run 44642170885), on Linux:
+  * **Built and Tested: pass.** Unit, database, build, publication check and the 17 Chrome tests all passed.
+  * **Deployed: no.** The deploy step failed with GitHub's message *"Ensure GitHub Pages has been enabled"*.
+    Pages is not switched on for this repository yet, and it can only be switched on in the repository settings.
+
+**To publish (one time, about 1 minute):**
+1. Open https://github.com/AcademicCat16/share-your-thoughts-fairfield/settings/pages
+2. Under **Build and deployment → Source**, choose **GitHub Actions**.
+3. Open the **Actions** tab, open the latest "Test and deploy" run, and click **Re-run all jobs**
+   (or push any commit).
 
 ## 11. Verified public URL
 
-PUBLIC_URL_PLACEHOLDER
+**Not yet verified**: the address currently returns 404 because Pages is off. After the step above, the site will be
+at https://academiccat16.github.io/share-your-thoughts-fairfield/ and it will show the Demo Mode banner. Check that
+the banner is visible before sharing the link.
 
 ## 12. Remaining steps before live classroom use
 
