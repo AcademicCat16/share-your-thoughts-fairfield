@@ -6,11 +6,12 @@ Report date: 2026-11-23. Rollback point: git tag `v1-demo-2026-11-19` (the first
 Status labels: **COMPLETED** (built) · **TESTED** (exercised by an automated test that was actually run, or a screenshot that was
 looked at) · **DEPLOYED** (verified on the public URL) · **DEMO ONLY** · **NEEDS CONFIGURATION** · **BLOCKED**.
 
-> **Bottom line.** The site is deployed in **Demo mode**: everything works, but comments are stored only in each visitor's own
-> browser. Shared commenting (Live mode) is fully built and passes its tests against the real database code on a local
-> Postgres, but it is **not switched on**: it needs your one-time Supabase project (section 17). The system is therefore
-> **not yet production-ready**. Shared persistence, sign-in, review permissions and database protections have been verified
-> locally, not on a real Supabase project.
+> **Update 2026-11-23 — Live mode connected.** The public site now runs in **Live mode** on the production Supabase project
+> `fairfield-interactive-worlds`, set up with the official Supabase CLI. The migration was applied, auth was configured,
+> and the roster (86), access-code hashes (86), instructor and assignments (112 + 232) are loaded. The production checks
+> pass: lock-down 17/17 (`npm run verify:prod`) and the two-browser test on the deployed site 9/9
+> (`tests/prod/live-site.mjs`). **Student feedback is PAUSED** on purpose: no codes have been handed out yet. See
+> "Production status" at the end. Sections 10–17 below describe the earlier, Demo-only state and are superseded by it.
 
 ## 1. Final student counts by course — COMPLETED, TESTED
 
@@ -207,3 +208,35 @@ https://academiccat16.github.io/share-your-thoughts-fairfield/ — **DEPLOYED, v
    * hand out codes privately.
 
    Until then, tell students that Demo mode keeps comments only on their own device.
+
+---
+
+## Production status (2026-11-23, after connecting Supabase)
+
+| Item | Status |
+|---|---|
+| Supabase project | `fairfield-interactive-worlds` (the existing project; none created). Linked with the official CLI 3.2.0 (pinned dev dependency) |
+| Migration `001_feedback_classroom.sql` | **COMPLETED** on production (`supabase db push`), after a dry run and your approval |
+| Auth settings | **COMPLETED** via `supabase config push` (only 4 declared settings): Site URL + redirect = GitHub Pages; anonymous sign-ins on; 150 anonymous sign-ins/hour/IP. E-mail provider was already on |
+| Instructor | **COMPLETED**: Auth user created by you (auto-confirmed); e-mail registered in `public.instructors` |
+| Roster / access codes | **COMPLETED**: 86 students (28 + 58), 81 reviewable; 86 SHA-256 code hashes. Plain codes only in `private/access_codes_2026-11-23.csv` (git-ignored) |
+| Reviewer assignments | **COMPLETED, TESTED**: generated with the dashboard's planner and applied through the server-validated `admin_apply_assignments`. 1101: 112, 2241: 232; every student exactly 4; no self, cross-course, duplicate or ineligible pairs; every project at capacity; 20 fifth slots in 2241, none in 1101 |
+| Database security on production | **TESTED**: 17/17 read-only lock-down checks: RLS on everywhere, no policies, no table/column/sequence grants, anon limited to 3 status functions, all functions SECURITY DEFINER with a pinned search_path, hashes only. Supabase advisor: no errors; 23 warnings, all the app's intended RPCs |
+| GitHub Actions variables | **COMPLETED**: `VITE_FEEDBACK_MODE=live`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (the *publishable* key; no secret key anywhere) |
+| Deployment | **DEPLOYED**: CI run 45149365055 (build + deploy succeeded); the public site loads in Live mode with no page errors |
+| Two-browser production test | **TESTED 9/9** (Chrome = student A, Edge = student B, deployed site + real database): visitor sees counts only and every table is closed; code-only sign-in; **A's review appears in B's browser**; author-only edit (UI + server); **self-review refused**; **course restriction both ways** (UI + server), other course still explorable; unassigned project refused; **two simultaneous submissions for the last slot: exactly one succeeds**, the full project stays explorable; pause refuses writes; no page errors. All test data was removed afterwards and checked |
+| Student feedback | **PAUSED**: no codes have been handed out |
+
+**Not tested on production:** the instructor dashboard UI itself (magic-link sign-in into your mailbox). Moderation and the
+pause/resume buttons were tested only against the local stand-in.
+
+### What you still need to do
+
+1. **Sign in to the dashboard yourself:** the site → **Instructor** → your Fairfield e-mail → open the link. Check that the
+   numbers show 86 students, 81 working sites, 344 reviews required, assignments 112 / 232. (Do **not** press Generate
+   again unless the roster changes; it is already done.)
+2. **Hand out the codes privately**, one per student, from `private/access_codes_2026-11-23.csv` (for example in a private
+   message or on slips of paper). Never post the file. Lost code: `npm run access-codes -- --only <student id>`, then run
+   the new `private/access_codes_upsert.sql` with `npx supabase db query --remote --file …` (or the SQL editor).
+3. **Open feedback** when you are ready: Dashboard → **Reopen feedback** (or ask me). Students can submit only after this.
+4. Optional: the privacy decision in `docs/PRIVACY_REVIEW.md` and the column-F confirmation (sections 3 and 17 above) are still open.
