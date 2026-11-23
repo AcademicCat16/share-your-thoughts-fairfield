@@ -1,7 +1,7 @@
 import { CREATURES } from '../../shared/creatures.ts'
 import { CREATURES_1101 } from '../../shared/creatures1101.ts'
 import { CreatureSvg } from '../components/CreatureSvg.tsx'
-import { go, useApp, MODE } from '../lib/app.tsx'
+import { go, useApp } from '../lib/app.tsx'
 
 /** Each step has a tiny picture so students can follow along without reading much. */
 const STEPS: { t: string; d: string; pic: string }[] = [
@@ -10,7 +10,7 @@ const STEPS: { t: string; d: string; pic: string }[] = [
   { t: 'Click a classmate’s creature.', d: 'Each creature belongs to one classmate. Their name is on the folded name card on the desk.', pic: '🐾' },
   { t: 'Visit their interactive website.', d: 'Press “Explore This World”. It opens in a new tab — try things out!', pic: '🌍' },
   { t: 'Return to the classroom.', d: 'Come back to this tab. The classroom is right where you left it.', pic: '↩️' },
-  { t: 'Leave a compliment and a helpful suggestion.', d: MODE === 'live' ? 'Press “Leave Your Thoughts”. The first time, type the private access code from your instructor.' : 'Press “Leave Your Thoughts”. (In this demo you choose a classmate to test as; the real version uses a private access code.)', pic: '💬' },
+  { t: 'Leave a compliment and a helpful suggestion.', d: 'Press “Leave Your Thoughts”, choose your own name from the list, then answer the two questions. (Honor system: please pick only your own name.)', pic: '💬' },
   { t: 'Complete four reviews.', d: 'Press “Find My Next Review” to jump to the next classmate on your Feedback Quest.', pic: '⭐' },
   { t: 'Keep exploring other students’ worlds!', d: 'Press “Explore Another World” any time — there is no limit on exploring.', pic: '✨' },
 ]

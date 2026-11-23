@@ -10,8 +10,9 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 const TABLES = ['settings', 'students', 'access_codes', 'code_attempts', 'student_sessions', 'project_slots', 'assignments',
-  'comments', 'write_events', 'instructors', 'audit_log', 'blocked_terms']
-const ANON = ['get_public_status', 'get_feedback_open', 'get_public_settings']
+  'comments', 'write_events', 'instructors', 'audit_log', 'blocked_terms', 'source_events']
+const ANON = ['get_public_status', 'get_feedback_open', 'get_public_settings',
+  'get_project_comments', 'get_student_quest', 'submit_feedback', 'edit_feedback'] // + migration 002 (honor system)
 const AUTH = [...ANON, 'redeem_access_code', 'whoami', 'sign_out_student', 'my_quest', 'next_review',
   'get_comments', 'my_reviews', 'submit_comment', 'update_comment', 'is_instructor', 'admin_overview',
   'admin_apply_assignments', 'admin_set_participating', 'admin_remove_comment', 'admin_restore_comment', 'admin_set_open',
@@ -39,7 +40,7 @@ function query(sql) {
 
 const one = (s) => s.replace(/\s+/g, ' ').trim()
 const checks = [
-  ['the 12 app tables exist (missing ones listed)', `select t as missing from unnest(${lit(TABLES)}) t
+  ['the 13 app tables exist (missing ones listed)', `select t as missing from unnest(${lit(TABLES)}) t
      where not exists (select 1 from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relkind='r' and c.relname=t)`],
   ['no unexpected tables in public', `select c.relname from pg_class c join pg_namespace n on n.oid=c.relnamespace
      where n.nspname='public' and c.relkind in ('r','v','m','f','p') and not (c.relname = any(${lit(TABLES)}))`],
@@ -60,7 +61,7 @@ const checks = [
      where n.nspname='public' and c.relkind='S' and (has_sequence_privilege('anon', c.oid, 'usage,select,update') or has_sequence_privilege('authenticated', c.oid, 'usage,select,update'))`],
   ['all expected app functions exist', `select f as missing from unnest(${lit(AUTH)}) f
      where not exists (select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname=f)`],
-  ['anon may execute ONLY the 3 public status functions', `select p.proname, has_function_privilege('anon', p.oid, 'execute') as anon_exec
+  ['anon may execute ONLY the public functions (3 status + 4 honor-system)', `select p.proname, has_function_privilege('anon', p.oid, 'execute') as anon_exec
      from pg_proc p join pg_namespace n on n.oid=p.pronamespace
      where n.nspname='public' and not (p.proname = any(${lit(PLATFORM_FUNCTIONS)}))
        and has_function_privilege('anon', p.oid, 'execute') <> (p.proname = any(${lit(ANON)}))`],
@@ -82,6 +83,8 @@ const checks = [
        and (has_function_privilege('anon', p.oid, 'execute') or has_function_privilege('authenticated', p.oid, 'execute')
             or exists (select 1 from aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a where a.grantee = 0))`],
   ['access codes stored as SHA-256 hex only', `select student_id from public.access_codes where code_hash !~ '^[0-9a-f]{64}$'`],
+  ['edit tokens stored as SHA-256 hex only', `select id from public.comments where edit_token_hash is not null and edit_token_hash !~ '^[0-9a-f]{64}$'`],
+  ['source_events holds only hashed sources', `select id from public.source_events where source_hash !~ '^[0-9a-f]{64}$'`],
   ['no access-code PLAINTEXT column exists (hashes only)', `select column_name from information_schema.columns where table_schema='public' and table_name='access_codes' and column_name not in ('student_id','code_hash','created_at','revoked_at')`],
 ]
 

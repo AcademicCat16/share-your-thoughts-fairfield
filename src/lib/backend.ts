@@ -17,7 +17,10 @@ export interface CommentView {
   updatedAt: string
 }
 
-/** The verified signed-in student. Everything here comes from the server (Live) — never from typed input. */
+/**
+ * The student this browser has chosen to be (HONOR SYSTEM: picked from the roster, not verified). Progress numbers come
+ * from the server in Live mode.
+ */
 export interface Me {
   studentId: string
   fullName: string
@@ -48,22 +51,29 @@ export interface AdminOverview {
 
 export interface Backend {
   mode: Mode
-  /** Who is signed in (verified identity), or null. */
+  /** The name this browser chose (honor system), or null. */
   me(): Promise<Me | null>
-  /** Live: the private access code alone identifies the student (verified on the server). Demo: pick a student. */
-  signIn(cred: { code?: string; studentId?: string }): Promise<Me>
+  /** Remember the chosen name in this browser (honor system — nothing is verified). */
+  signIn(cred: { studentId: string }): Promise<Me>
+  /** Forget the chosen name in this browser. */
   signOut(): Promise<void>
   /** Published counts and slot capacities for every eligible project (no names, no text). */
   status(): Promise<PublicStatus>
   comments(projectId: string): Promise<CommentView[]>
   myReviews(): Promise<CommentView[]>
   quest(): Promise<QuestItem[]>
+  /** The Feedback Quest of any SELECTED student (used by the name dropdown in the feedback form). */
+  questOf(studentId: string): Promise<QuestItem[]>
   nextReview(): Promise<string | null>
-  submit(projectId: string, input: FeedbackInput): Promise<CommentView>
+  /** Submit under the SELECTED name; the server checks every rule for that name. Remembers the name afterwards. */
+  submit(projectId: string, input: FeedbackInput, reviewerId: string): Promise<CommentView>
   update(commentId: string, input: FeedbackInput): Promise<CommentView>
-  /** Instructor */
+  /** Can this browser edit that comment? (Live: it holds the comment's edit token. Demo: it is the chosen name's.) */
+  canEdit(c: CommentView): boolean
+  /** Instructor (Live: Supabase e-mail + password; privileges are checked on the server) */
   instructorStatus(): Promise<{ signedIn: boolean; email?: string; isInstructor: boolean }>
-  instructorSignIn(email: string): Promise<string>
+  instructorSignIn(email: string, password: string): Promise<string>
+  instructorChangePassword(newPassword: string): Promise<void>
   instructorSignOut(): Promise<void>
   adminOverview(): Promise<AdminOverview>
   applyAssignments(course: CourseKey, capacities: Record<string, number>, pending: { reviewerId: string; projectId: string }[]): Promise<void>

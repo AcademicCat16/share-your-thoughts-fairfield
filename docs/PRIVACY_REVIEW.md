@@ -23,9 +23,20 @@ For each of the 86 students (MKTG 1101 and MKTG 2241):
 * Access codes and code hashes. Codes are generated into the git-ignored `private/` folder on your computer only; the publish check
   also fails if anything shaped like an access code, an access-code sheet, a hash upload or a Supabase secret key appears in the
   repository or the built site.
-* Comments. In Live mode, comments can be read only by signed-in students and by you. Visitors who are not signed in see counts only.
+* *(Changed with the honor-system update.)* **Comments are now public to anyone who opens the site**, as in the original demo: the
+  reviewer's name (as chosen from the list), the date and the comment text. Visitors do not need to sign in to read them.
   (In Demo mode comments exist only in the browser where they were typed.)
-* Reviewer assignments (who reviews whom). Each student sees only their own list after signing in.
+* *(Changed.)* Reviewer assignments: anyone can look up which projects are on a given name's Feedback Quest (needed so a student
+  can pick their name and see their list without an account).
+
+## Honor system — what it means
+
+Students choose their own name from a list; nothing verifies who is typing. Anyone with the link could send feedback
+under a classmate's name (only to a project on that name's list, once per project, within the rate limits). The
+instructor can remove any comment (the slot reopens for the real student) and pause feedback at any time. Edit rights
+belong to the browser that wrote a comment (an edit token), not to whoever picks the name later. No e-mail address,
+password or device identifier of a student is collected; the server stores only a SHA-256 hash of the network address
+for rate limiting.
 
 ## Hiding a student
 

@@ -69,11 +69,14 @@ export function createDemoBackend(getRoster: () => Student[]): Backend {
       return load().comments.filter((c) => c.reviewerId === id && c.status === 'published').map(view)
     },
     async quest() { const id = meId(); return id ? quest(load(), id) : [] },
+    async questOf(studentId) { return getRoster().some((s) => s.id === studentId && !s.hidden) ? quest(load(), studentId) : [] },
     async nextReview() { return nextReview(load(), requireMe()) },
-    async submit(projectId, input) {
-      const id = requireMe()
-      const r = wrap(() => submitComment(load(), getRoster(), id, projectId, input, new Date(), DEFAULT_SETTINGS))
-      save(r.state); emit(); return view(r.comment)
+    async submit(projectId, input, reviewerId) {
+      if (!meOf(reviewerId)) throw new BackendError('unknown_reviewer')
+      const r = wrap(() => submitComment(load(), getRoster(), reviewerId, projectId, input, new Date(), DEFAULT_SETTINGS))
+      save(r.state)
+      try { localStorage.setItem(DEMO_ME, reviewerId) } catch { /* storage blocked */ }
+      emit(); return view(r.comment)
     },
     async update(commentId, input) {
       const id = requireMe()
@@ -81,7 +84,9 @@ export function createDemoBackend(getRoster: () => Student[]): Backend {
       save(r.state); emit(); return view(r.comment)
     },
     async instructorStatus() { return { signedIn: true, isInstructor: true, email: 'demo' } },
+    canEdit(c) { return c.reviewerId === meId() },
     async instructorSignIn() { return 'Demo mode has no instructor sign-in.' },
+    async instructorChangePassword() {},
     async instructorSignOut() {},
     async adminOverview() {
       const s = load()

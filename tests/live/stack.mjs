@@ -84,7 +84,9 @@ export async function startStack({ instructorEmail = 'teacher@example.edu' } = {
   const cfg = { host: '127.0.0.1', port: dbPort, user: 'postgres', password: 'live-test-only', database: 'postgres' }
   const admin = new pg.Client(cfg); await admin.connect()
   await admin.query(STANDINS)
-  await admin.query(readFileSync(path.join(ROOT, 'supabase', 'migrations', '001_feedback_classroom.sql'), 'utf8'))
+  // Every migration, in order (what `supabase db push` applies).
+  const migDir = path.join(ROOT, 'supabase', 'migrations')
+  for (const f of readdirSync(migDir).filter((x) => /^[0-9]+_.*[.]sql$/.test(x)).sort()) await admin.query(readFileSync(path.join(migDir, f), 'utf8'))
   // Real roster + real access codes (into a temp folder that is deleted at the end).
   const tmp = mkdtempSync(path.join(os.tmpdir(), 'fic-live-'))
   node(['scripts/build-live-sql.ts', '--out', path.join(tmp, 'roster.sql')])
@@ -116,8 +118,11 @@ export async function startStack({ instructorEmail = 'teacher@example.edu' } = {
     users.set(u.id, u); return u
   }
   const knownEmails = new Set([instructorEmail.toLowerCase(), 'not-an-instructor@example.edu'])
+  // Password accounts (random per run; never written anywhere). The second one is a real account that is NOT an instructor.
+  const passwords = new Map([[instructorEmail.toLowerCase(), `T-${randomBytes(12).toString('hex')}`], ['not-an-instructor@example.edu', `N-${randomBytes(12).toString('hex')}`]])
+  const userByEmail = (email) => [...users.values()].find((x) => x.email === email) ?? newUser(email, false)
 
-  const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': 'GET,POST,PATCH,DELETE,OPTIONS', 'access-control-expose-headers': '*' }
+  const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': 'GET,POST,PUT,PATCH,DELETE,OPTIONS', 'access-control-expose-headers': '*' }
   const send = (res, status, body) => { res.writeHead(status, { ...cors, 'content-type': 'application/json' }); res.end(body === undefined ? '' : JSON.stringify(body)) }
   const readBody = (req) => new Promise((r) => { let d = ''; req.on('data', (c) => (d += c)); req.on('end', () => r(d ? JSON.parse(d) : {})) })
   const procCache = new Map()
@@ -140,6 +145,11 @@ export async function startStack({ instructorEmail = 'teacher@example.edu' } = {
       if (url.pathname === '/auth/v1/token' && req.method === 'POST') {
         const b = await readBody(req); const g = url.searchParams.get('grant_type')
         if (g === 'refresh_token') { const id = refresh.get(b.refresh_token); refresh.delete(b.refresh_token); return id ? send(res, 200, session(users.get(id))) : send(res, 400, { error: 'invalid_grant', error_description: 'Invalid Refresh Token' }) }
+        if (g === 'password') {
+          const email = String(b.email ?? '').toLowerCase()
+          if (!passwords.has(email) || passwords.get(email) !== b.password) return send(res, 400, { code: 400, error_code: 'invalid_credentials', msg: 'Invalid login credentials' })
+          return send(res, 200, session(userByEmail(email)))
+        }
         if (g === 'pkce') {
           const p = codesPkce.get(b.auth_code); codesPkce.delete(b.auth_code)
           if (!p) return send(res, 404, { error: 'invalid_grant', error_description: 'invalid flow state' })
@@ -158,6 +168,13 @@ export async function startStack({ instructorEmail = 'teacher@example.edu' } = {
         const redirect = url.searchParams.get('redirect_to') ?? ''
         mail.set(email, `${redirect}${redirect.includes('?') ? '&' : '?'}code=${code}`)
         return send(res, 200, {})
+      }
+      if (url.pathname === '/auth/v1/user' && req.method === 'PUT') {
+        const c = verifyJwt(bearer, secret); const u = c && users.get(c.sub)
+        if (!u || u.is_anonymous) return send(res, 401, { msg: 'invalid JWT' })
+        const b = await readBody(req)
+        if (typeof b.password === 'string') { if (b.password.length < 12) return send(res, 422, { code: 422, error_code: 'weak_password', msg: 'Password should be at least 12 characters.' }); passwords.set(u.email, b.password) }
+        return send(res, 200, u)
       }
       if (url.pathname === '/auth/v1/user' && req.method === 'GET') {
         const c = verifyJwt(bearer, secret); const u = c && users.get(c.sub)
@@ -188,6 +205,7 @@ export async function startStack({ instructorEmail = 'teacher@example.edu' } = {
           await c.query('begin')
           await c.query(`set local role ${role}`)
           await c.query(`select set_config('request.jwt.claims', $1, true)`, [JSON.stringify(claims)])
+          await c.query(`select set_config('request.headers', $1, true)`, [JSON.stringify({ ...req.headers, 'x-forwarded-for': req.headers['x-forwarded-for'] ?? req.socket.remoteAddress ?? '' })])
           const r = await c.query(sql, params)
           await c.query('commit')
           return send(res, 200, set ? r.rows : (r.rows[0]?.r ?? null))
@@ -217,6 +235,7 @@ export async function startStack({ instructorEmail = 'teacher@example.edu' } = {
 
   return {
     url: `http://127.0.0.1:${apiPort}`, anonKey, codes, admin, requests, instructorEmail,
+    instructorPassword: passwords.get(instructorEmail.toLowerCase()), otherAccount: { email: 'not-an-instructor@example.edu', password: passwords.get('not-an-instructor@example.edu') },
     sql: (q, p) => admin.query(q, p),
     async stop() {
       server.close(); await pool.end().catch(() => {}); await admin.end().catch(() => {})

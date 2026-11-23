@@ -22,9 +22,10 @@ export type RuleError =
   | 'not_signed_in' | 'self_review' | 'project_full' | 'already_reviewed' | 'reviewer_limit'
   | 'project_unavailable' | 'invalid_text' | 'inappropriate' | 'rate_limited' | 'not_author'
   | 'closed' | 'bad_code' | 'locked' | 'not_instructor' | 'not_found' | 'wrong_course' | 'not_assigned' | 'invalid_plan'
+  | 'unknown_reviewer'
 
 export const RULE_MESSAGES: Record<RuleError, string> = {
-  not_signed_in: 'Please sign in with your access code first.',
+  not_signed_in: 'Please choose your name first.',
   self_review: "That's your own world! You can't review your own project.",
   project_full: 'All comment slots are full! This project has received its feedback for now. You can still explore the website and read what your classmates shared!',
   already_reviewed: "You've already left your thoughts here. You can edit your comment instead.",
@@ -33,7 +34,7 @@ export const RULE_MESSAGES: Record<RuleError, string> = {
   invalid_text: `Each answer needs ${TEXT_MIN}–${TEXT_MAX} characters.`,
   inappropriate: 'Please keep feedback kind and respectful — try rewording that answer.',
   rate_limited: 'Whoa, speedy! Please wait a little before trying again.',
-  not_author: 'Only the person who wrote this comment can edit it.',
+  not_author: 'This comment can be edited only from the browser that wrote it.',
   closed: 'Feedback is closed right now.',
   bad_code: "That access code didn't match. Check it and try again.",
   locked: 'Too many tries. Please wait 15 minutes, or ask your instructor.',
@@ -42,6 +43,7 @@ export const RULE_MESSAGES: Record<RuleError, string> = {
   invalid_plan: 'The review plan was rejected by the server (see the details on the dashboard).',
   not_instructor: 'Instructor sign-in required.',
   not_found: 'That item could not be found.',
+  unknown_reviewer: 'Please choose your own name from the list.',
 }
 
 /**

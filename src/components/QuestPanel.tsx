@@ -14,8 +14,8 @@ export function QuestPanel({ course, onSignIn }: { course: CourseKey; onSignIn: 
   if (!me) {
     return (
       <section className="quest quest-out" aria-label="Your Feedback Quest">
-        <p><strong>Your Feedback Quest:</strong> sign in to see the four classmates you'll review. Exploring needs no sign-in — click any creature!</p>
-        <button type="button" className="btn small" onClick={onSignIn} data-testid="quest-signin"><KeyRound size={15} aria-hidden="true" /> Sign in</button>
+        <p><strong>Your Feedback Quest:</strong> choose your name to see the four classmates you'll review. Exploring needs nothing — click any creature!</p>
+        <button type="button" className="btn small" onClick={onSignIn} data-testid="quest-signin"><KeyRound size={15} aria-hidden="true" /> Choose your name</button>
       </section>
     )
   }
@@ -40,7 +40,7 @@ export function QuestPanel({ course, onSignIn }: { course: CourseKey; onSignIn: 
       </div>
       {open && (
         <div id="quest-body" className="quest-body">
-          {other && <p className="hint">You're signed in as a {COURSES[me.course].code} student, so your reviews are in the {COURSES[me.course].title} classroom. You're welcome to explore this room too! <button type="button" className="linklike" onClick={() => go(me.course)}>Go to my classroom</button></p>}
+          {other && <p className="hint">You chose a {COURSES[me.course].code} student, so your reviews are in the {COURSES[me.course].title} classroom. You're welcome to explore this room too! <button type="button" className="linklike" onClick={() => go(me.course)}>Go to my classroom</button></p>}
           {complete && (
             <div className="congrats" data-testid="quest-congrats">
               <PartyPopper size={22} aria-hidden="true" />

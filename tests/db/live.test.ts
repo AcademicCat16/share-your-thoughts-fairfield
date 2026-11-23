@@ -12,7 +12,7 @@ import { BLOCKED_TERMS, validateFeedback } from '../../shared/rules.ts'
 import { hashAccessCode, newAccessCode, normalizeAccessCode } from '../../shared/accessCode.ts'
 import { planAssignments, type Edge, type ExistingEdge, type Plan } from '../../shared/allocation.ts'
 import {
-  TestDb, runAs, errorOf, codeFor, anonUser, emailUser, fullNameOf, idsOf, eligibleOf, INSTRUCTOR_EMAIL, MIGRATION, ROOT,
+  TestDb, runAs, errorOf, codeFor, anonUser, emailUser, fullNameOf, idsOf, eligibleOf, INSTRUCTOR_EMAIL, allMigrationsSql, ROOT,
   STUDENTS, SUPABASE_STANDINS, type Claims, type Course, type PgClient,
 } from './harness.ts'
 
@@ -26,8 +26,9 @@ const BOM = U(0xfeff)
 const ENJOY = 'I loved the glowing lanterns in the forest.'
 const SUGGEST = 'Maybe add a short guide at the entrance.'
 const TABLES = ['settings', 'students', 'access_codes', 'code_attempts', 'student_sessions', 'project_slots', 'assignments',
-  'comments', 'write_events', 'instructors', 'audit_log', 'blocked_terms']
-const ANON_FUNCTIONS = ['get_public_status', 'get_feedback_open', 'get_public_settings']
+  'comments', 'write_events', 'instructors', 'audit_log', 'blocked_terms', 'source_events']
+const ANON_FUNCTIONS = ['get_public_status', 'get_feedback_open', 'get_public_settings',
+  'get_project_comments', 'get_student_quest', 'submit_feedback', 'edit_feedback'] // + migration 002 (honor system)
 const AUTH_FUNCTIONS = [...ANON_FUNCTIONS, 'redeem_access_code', 'whoami', 'sign_out_student', 'my_quest', 'next_review',
   'get_comments', 'my_reviews', 'submit_comment', 'update_comment', 'is_instructor', 'admin_overview',
   'admin_apply_assignments', 'admin_set_participating', 'admin_remove_comment', 'admin_restore_comment', 'admin_set_open',
@@ -129,7 +130,8 @@ describe('lock-down', () => {
       `select column_name, column_default from information_schema.columns where table_schema='public' and table_name='settings' and column_name <> 'id'`)
     const d = Object.fromEntries(fresh.rows.map((r) => [r.column_name, r.column_default]))
     assert.deepEqual(d, { base_slots: '4', reviews_per_student: '4', feedback_open: 'true', allow_extra_reviews: 'false',
-      min_seconds_between_writes: '15', max_writes_per_hour: '20', max_failed_codes_per_session: '10', max_failed_codes_global: '300' })
+      min_seconds_between_writes: '15', max_writes_per_hour: '20', max_failed_codes_per_session: '10', max_failed_codes_global: '300',
+      max_anon_writes_per_source_hour: '240', max_anon_writes_global_hour: '600' })
   })
 })
 
@@ -962,8 +964,9 @@ describe('other instructor functions', () => {
     await db.addComment('s01-02', 's02-03', 'published', true)
     await db.admin.query(`update students set participating=false where id='s01-04'`)
     const [{ admin_overview: ov }] = await as(t, 'select admin_overview()') as Array<{ admin_overview: { settings: Row; students: Row[]; assignments: Row[]; comments: Row[] } }>
-    assert.deepEqual(Object.keys(ov.settings).sort(), ['allow_extra_reviews', 'base_slots', 'feedback_open', 'max_failed_codes_global',
-      'max_failed_codes_per_session', 'max_writes_per_hour', 'min_seconds_between_writes', 'reviews_per_student'])
+    assert.deepEqual(Object.keys(ov.settings).sort(), ['allow_extra_reviews', 'base_slots', 'feedback_open', 'max_anon_writes_global_hour',
+      'max_anon_writes_per_source_hour', 'max_failed_codes_global', 'max_failed_codes_per_session', 'max_writes_per_hour',
+      'min_seconds_between_writes', 'reviews_per_student'])
     assert.equal(ov.students.length, STUDENTS.length)
     const s = ov.students.find((x) => x.id === 's01-01')!
     assert.deepEqual(s, { id: 's01-01', course: '2241', section: '01', section_code: 'MKTG 2241-01', full_name: fullNameOf('s01-01'),
@@ -1016,8 +1019,8 @@ test('re-running the migration on a populated database keeps all data and the lo
     audit: (await db.admin.query(`select * from audit_log order by id`)).rows,
   })
   const before1 = await snapshot()
-  await db.admin.query(await readFile(MIGRATION, 'utf8'))
-  await db.admin.query(await readFile(MIGRATION, 'utf8'))
+  await db.admin.query(await allMigrationsSql())
+  await db.admin.query(await allMigrationsSql())
   assert.deepEqual(await snapshot(), before1)
   assert.equal((await db.admin.query(`select 1 from comments where id = $1`, [c])).rowCount, 1)
   await assertLockedDown(db.admin)
@@ -1039,8 +1042,8 @@ test('running v2 over a v1 database converges (v1 objects dropped, students and 
     await c.query(`insert into access_codes (student_id, code_hash) values ('s01-01', '$2a$10$abcdefghijklmnopqrstuuabcdefghijklmnopqrstuvwxyz12345')`)
     await c.query(`insert into comments (project_id, reviewer_id, reviewer_name, enjoyed, suggestion) values ('s01-01','s02-01','Bob Old','x','y')`)
     await c.query(`insert into reservations (reviewer_id, project_id, expires_at) values ('s02-01','s01-01', now())`)
-    await c.query(await readFile(MIGRATION, 'utf8'))
-    await c.query(await readFile(MIGRATION, 'utf8'))
+    await c.query(await allMigrationsSql())
+    await c.query(await allMigrationsSql())
     const st = await c.query<Row>(`select id, course, section, link_status, active, participating, hidden from students order by id`)
     assert.deepEqual(st.rows, [
       { id: 's01-01', course: '2241', section: '01', link_status: 'unchecked', active: true, participating: true, hidden: false },
@@ -1050,8 +1053,9 @@ test('running v2 over a v1 database converges (v1 objects dropped, students and 
     assert.equal((await c.query(`select 1 from pg_namespace where nspname='feedback_private'`)).rowCount, 0)
     assert.equal((await c.query(`select to_regclass('public.reservations') r`)).rows[0].r, null)
     const cols = await c.query<{ column_name: string }>(`select column_name from information_schema.columns where table_schema='public' and table_name='settings' order by 1`)
-    assert.deepEqual(cols.rows.map((x) => x.column_name), ['allow_extra_reviews', 'base_slots', 'feedback_open', 'id', 'max_failed_codes_global',
-      'max_failed_codes_per_session', 'max_writes_per_hour', 'min_seconds_between_writes', 'reviews_per_student'])
+    assert.deepEqual(cols.rows.map((x) => x.column_name), ['allow_extra_reviews', 'base_slots', 'feedback_open', 'id', 'max_anon_writes_global_hour',
+      'max_anon_writes_per_source_hour', 'max_failed_codes_global', 'max_failed_codes_per_session', 'max_writes_per_hour',
+      'min_seconds_between_writes', 'reviews_per_student'])
     await assertLockedDown(c)
     await c.query(`insert into access_codes (student_id, code_hash) values ('s01-01', $1)`, [hashAccessCode(codeFor('s01-01'))])
     const r = await runAs<Row>(c, 'authenticated', anonUser(randomUUID()), REDEEM, [codeFor('s01-01')])

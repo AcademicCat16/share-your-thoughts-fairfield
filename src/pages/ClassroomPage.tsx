@@ -168,7 +168,7 @@ export function ClassroomPage({ course }: { course: CourseKey }) {
       </div>
 
       {selectedStudent && <ProfileModal key={selectedStudent.id} student={selectedStudent} onClose={() => select(null)} onExploreAnother={exploreAnother} onFindNext={() => { select(null); findNext() }} />}
-      {signin && <Modal title="Sign in" onClose={() => setSignin(false)} className="small-modal"><SignInPanel onDone={() => { setSignin(false); findNext(true) }} /></Modal>}
+      {signin && <Modal title="Choose your name" onClose={() => setSignin(false)} className="small-modal"><SignInPanel onDone={() => { setSignin(false); findNext(true) }} /></Modal>}
     </div>
   )
 }

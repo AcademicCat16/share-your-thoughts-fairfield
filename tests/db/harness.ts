@@ -9,6 +9,7 @@ import { createRequire } from 'node:module'
 import { spawnSync, type ChildProcess } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { mkdir, readFile, rm } from 'node:fs/promises'
+import { readdirSync } from 'node:fs'
 import { createServer } from 'node:net'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -27,6 +28,12 @@ const pg = createRequire(import.meta.url)('pg') as PgModule
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 export const MIGRATION = path.join(ROOT, 'supabase', 'migrations', '001_feedback_classroom.sql')
+/** Every migration, in order (what `supabase db push` applies). */
+export const MIGRATIONS = readdirSync(path.join(ROOT, 'supabase', 'migrations')).filter((f) => /^\d+_.*\.sql$/.test(f)).sort()
+  .map((f) => path.join(ROOT, 'supabase', 'migrations', f))
+export async function allMigrationsSql(): Promise<string> {
+  return (await Promise.all(MIGRATIONS.map((f) => readFile(f, 'utf8')))).join('\n;\n')
+}
 
 export type Course = '1101' | '2241'
 export type Section = 'pm' | '01' | '02'
@@ -149,7 +156,7 @@ export class TestDb {
     await this.epg.start()
     this.admin = await this.connect()
     await this.admin.query(SUPABASE_STANDINS)
-    await this.admin.query(await readFile(MIGRATION, 'utf8'))
+    await this.admin.query(await allMigrationsSql())
     await this.seed()
   }
 
@@ -181,7 +188,7 @@ export class TestDb {
 
   /** Back to the freshly seeded state (fast; access-code hashes are kept). Removes students that tests added. */
   async reset(settings: Partial<Record<string, number | boolean>> = {}): Promise<void> {
-    await this.admin.query(`truncate comments, assignments, project_slots, write_events, student_sessions, audit_log, code_attempts`)
+    await this.admin.query(`truncate comments, assignments, project_slots, write_events, student_sessions, audit_log, code_attempts, source_events`)
     const ids = STUDENTS.map((s) => s.id)
     await this.admin.query(`delete from access_codes where student_id <> all($1)`, [ids])
     await this.admin.query(`delete from students where id <> all($1)`, [ids])
@@ -301,6 +308,25 @@ export async function runAs<R = Record<string, unknown>>(client: PgClient, role:
   try {
     await client.query(`set local role ${role}`)
     await client.query(`select set_config('request.jwt.claims', $1, true)`, [JSON.stringify(claims ?? { role })])
+    const r = await client.query<R>(sql, params)
+    await client.query('commit')
+    return r.rows
+  } catch (e) {
+    await client.query('rollback').catch(() => {})
+    throw e
+  }
+}
+
+/**
+ * Run one statement as the ANONYMOUS API role from a given client address, the way PostgREST does it on Supabase
+ * (role anon, request.jwt.claims {role: anon}, request.headers with the forwarded client address).
+ */
+export async function runAnonFrom<R = Record<string, unknown>>(client: PgClient, ip: string, sql: string, params: unknown[] = []): Promise<R[]> {
+  await client.query('begin')
+  try {
+    await client.query('set local role anon')
+    await client.query(`select set_config('request.jwt.claims', $1, true)`, [JSON.stringify({ role: 'anon' })])
+    await client.query(`select set_config('request.headers', $1, true)`, [JSON.stringify({ 'x-forwarded-for': `${ip}, 10.0.0.1`, 'user-agent': 'test' })])
     const r = await client.query<R>(sql, params)
     await client.query('commit')
     return r.rows

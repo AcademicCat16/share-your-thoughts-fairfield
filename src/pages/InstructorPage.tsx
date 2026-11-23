@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Download, Upload, Trash2, RotateCcw, ShieldCheck, AlertTriangle, Lock, Unlock, LogOut, Mail, Shuffle, Scale, UserX, UserCheck, EyeOff, Link2, RefreshCw } from 'lucide-react'
+import { Download, Upload, Trash2, RotateCcw, ShieldCheck, AlertTriangle, Lock, Unlock, LogOut, LogIn, KeyRound, Shuffle, Scale, UserX, UserCheck, EyeOff, Link2, RefreshCw } from 'lucide-react'
 import linkAudit from '../data/link_audit.json'
 import { useApp, MODE, BUNDLED_ROSTER } from '../lib/app.tsx'
 import { BackendError, type AdminOverview } from '../lib/backend.ts'
@@ -25,6 +25,8 @@ const today = () => new Date().toISOString().slice(0, 10)
 function InstructorGate({ onReady }: { onReady: () => void }) {
   const { backend } = useApp()
   const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
   const [status, setStatus] = useState<{ signedIn: boolean; email?: string; isInstructor: boolean } | null>(null)
   useEffect(() => { backend.instructorStatus().then((s) => { setStatus(s); if (s.isInstructor) onReady() }).catch(() => setStatus({ signedIn: false, isInstructor: false })) }, [backend, onReady])
@@ -33,13 +35,47 @@ function InstructorGate({ onReady }: { onReady: () => void }) {
     <div className="gate"><Lock aria-hidden="true" /><h2>Not an instructor account</h2><p>{status.email} is signed in but is not on the instructor list.</p>
       <button type="button" className="btn" onClick={() => backend.instructorSignOut().then(() => location.reload())}><LogOut size={16} aria-hidden="true" /> Sign out</button></div>
   )
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault(); setMsg(null); setBusy(true)
+    try {
+      await backend.instructorSignIn(email.trim(), password)
+      setPassword('')
+      const s = await backend.instructorStatus(); setStatus(s); if (s.isInstructor) onReady()
+    } catch (x) { setPassword(''); setMsg(x instanceof BackendError ? x.message : 'Could not sign in.') } finally { setBusy(false) }
+  }
   return (
-    <form className="gate" onSubmit={async (e) => { e.preventDefault(); try { setMsg(await backend.instructorSignIn(email.trim())) } catch (x) { setMsg(x instanceof BackendError ? x.message : 'Could not send the link.') } }} data-testid="instructor-gate">
+    <form className="gate" onSubmit={submit} data-testid="instructor-gate">
       <Lock aria-hidden="true" /><h2>Instructor sign-in</h2>
-      <p>The dashboard and moderation tools are protected on the server. Enter the instructor email registered in the database and we'll send a one-time sign-in link.</p>
-      <label className="field"><span>Instructor email</span><input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" data-testid="instructor-email" /></label>
-      <button type="submit" className="btn primary" data-testid="instructor-send"><Mail size={16} aria-hidden="true" /> Email me a sign-in link</button>
-      {msg && <p className="hint" role="status" data-testid="instructor-msg">{msg}</p>}
+      <p>The dashboard and moderation tools are protected on the server. Sign in with the instructor e-mail and password set up in Supabase.</p>
+      <label className="field"><span>Instructor e-mail</span><input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="username" data-testid="instructor-email" /></label>
+      <label className="field"><span>Password</span><input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" data-testid="instructor-password" /></label>
+      <button type="submit" className="btn primary" disabled={busy} data-testid="instructor-send"><LogIn size={16} aria-hidden="true" /> {busy ? 'Signing in…' : 'Sign in'}</button>
+      {msg && <p className="form-error" role="alert" data-testid="instructor-msg">{msg}</p>}
+      <p className="hint">Forgot the password? It can be reset only in the Supabase dashboard (see supabase/SETUP.md, “Instructor password”). The session ends when you close this tab.</p>
+    </form>
+  )
+}
+
+/** Signed-in instructor: change the password (Supabase checks it; the app never stores it). */
+function ChangePassword() {
+  const { backend } = useApp()
+  const [open, setOpen] = useState(false)
+  const [a, setA] = useState('')
+  const [b, setB] = useState('')
+  const [msg, setMsg] = useState<string | null>(null)
+  if (!open) return <button type="button" className="btn small ghost" onClick={() => setOpen(true)} data-testid="pw-open"><KeyRound size={15} aria-hidden="true" /> Change password</button>
+  return (
+    <form className="pw-form" data-testid="pw-form" onSubmit={async (e) => {
+      e.preventDefault(); setMsg(null)
+      if (a.length < 12) { setMsg('Use at least 12 characters.'); return }
+      if (a !== b) { setMsg('The two passwords do not match.'); return }
+      try { await backend.instructorChangePassword(a); setA(''); setB(''); setMsg('Password changed.') } catch (x) { setMsg(x instanceof BackendError ? x.message : 'Could not change the password.') }
+    }}>
+      <label className="field"><span>New password</span><input type="password" value={a} onChange={(e) => setA(e.target.value)} autoComplete="new-password" required data-testid="pw-new" /></label>
+      <label className="field"><span>Repeat it</span><input type="password" value={b} onChange={(e) => setB(e.target.value)} autoComplete="new-password" required data-testid="pw-repeat" /></label>
+      <button type="submit" className="btn small primary" data-testid="pw-save">Save new password</button>
+      <button type="button" className="btn small ghost" onClick={() => { setOpen(false); setA(''); setB(''); setMsg(null) }}>Cancel</button>
+      {msg && <p className="hint" role="status" data-testid="pw-msg">{msg}</p>}
     </form>
   )
 }
@@ -201,7 +237,7 @@ export function InstructorPage() {
           <h1>Instructor dashboard</h1>
           <p className="hint">{MODE === 'demo' ? 'Demo mode: these numbers describe test data stored only in this browser. The controls only affect this browser.' : 'Live classroom data. Every action here is checked again on the server.'}</p>
         </div>
-        {MODE === 'live' && <button type="button" className="btn ghost" onClick={() => backend.instructorSignOut().then(() => location.reload())}><LogOut size={16} aria-hidden="true" /> Sign out</button>}
+        {MODE === 'live' && <div className="row"><ChangePassword /><button type="button" className="btn ghost" onClick={() => backend.instructorSignOut().then(() => location.reload())} data-testid="instructor-signout"><LogOut size={16} aria-hidden="true" /> Sign out</button></div>}
       </header>
       {err && <p className="form-error" role="alert">{err}</p>}
 
@@ -302,7 +338,7 @@ export function InstructorPage() {
 
       <section className="panel" aria-labelledby="priv">
         <h2 id="priv"><EyeOff size={20} aria-hidden="true" /> Public roster visibility</h2>
-        <p>The public website shows, for every student: <strong>first and last name, course and section, and their interactive project link</strong>. It does <em>not</em> show emails, grades, access codes, personal-website links (1101 column D) or any other spreadsheet column. Comments are visible only to signed-in classmates and you (Live mode).</p>
+        <p>The public website shows, for every student: <strong>first and last name, course and section, and their interactive project link</strong>. It does <em>not</em> show emails, grades, access codes, personal-website links (1101 column D) or any other spreadsheet column. In Live mode, <strong>comments are visible to anyone who opens the site</strong> (as in the original demo), and anyone can look up which projects are on a name’s Feedback Quest. Names are chosen on the honor system.</p>
         <p>To hide a student (their desk stays as a “Reserved seat”, with no name or link), tick them, download <code>visibility.json</code>, put it in <code>src/data/</code>, run <code>npm run import-roster</code>, then commit and push.</p>
         <details><summary>Choose students to hide ({hide.size} selected)</summary>
           <ul className="hide-list">{roster.students.map((s) => <li key={s.id}><label><input type="checkbox" checked={hide.has(s.id)} onChange={(e) => { const n = new Set(hide); if (e.target.checked) n.add(s.id); else n.delete(s.id); setHide(n) }} /> {s.hidden ? `Hidden (${s.id})` : s.fullName} <small>{s.sectionCode}</small></label></li>)}</ul>

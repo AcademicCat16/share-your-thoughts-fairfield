@@ -15,3 +15,4 @@ tests/output/
 *.xlsb
 ~$*
 dist-live/
+dist-prodcheck/

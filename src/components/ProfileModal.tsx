@@ -3,11 +3,13 @@ import { ExternalLink, MessageCircleHeart, PencilLine, Sparkles, Eye, ArrowLeft,
 import { isReviewable, unavailableReason, type Student } from '../../shared/roster.ts'
 import { composeComment } from '../../shared/compose.ts'
 import { BASE_SLOTS, PRONOUNS_MAX, TEXT_MAX, TEXT_MIN, validateFeedback, RULE_MESSAGES, type RuleError } from '../../shared/rules.ts'
-import { CREATURE_BY_ID, useApp, MODE, slotsOf, markExplored } from '../lib/app.tsx'
+import { CREATURE_BY_ID, useApp, slotsOf, markExplored } from '../lib/app.tsx'
 import { BackendError, type CommentView } from '../lib/backend.ts'
 import { Modal } from './Modal.tsx'
 import { CreatureSvg } from './CreatureSvg.tsx'
-import { SignInPanel } from './SignIn.tsx'
+import { HONOR_NOTE } from './SignIn.tsx'
+import type { QuestItem } from '../../shared/engine.ts'
+import { COURSES } from '../../shared/roster.ts'
 import { Celebrate } from './Celebrate.tsx'
 import { SlotDots } from './Classroom2D.tsx'
 import { CONGRATS_TITLE, CONGRATS_TEXT, CONGRATS_MORE } from './QuestPanel.tsx'
@@ -48,10 +50,10 @@ const UNAVAILABLE: Record<string, string> = {
   hidden: 'This seat is reserved.',
 }
 
-type Step = 'profile' | 'signin' | 'form' | 'preview' | 'done'
+type Step = 'profile' | 'form' | 'preview' | 'done'
 
 export function ProfileModal({ student, onClose, onExploreAnother, onFindNext }: { student: Student; onClose: () => void; onExploreAnother: () => void; onFindNext: () => void }) {
-  const { backend, me, status, quest, refresh, reducedMotion } = useApp()
+  const { backend, me, status, quest, refresh, reducedMotion, students } = useApp()
   const spec = CREATURE_BY_ID.get(student.creatureId)
   const url = safeProjectUrl(student)
   const [comments, setComments] = useState<CommentView[] | null>(null)
@@ -62,6 +64,15 @@ export function ProfileModal({ student, onClose, onExploreAnother, onFindNext }:
   const [err, setErr] = useState<{ msg: string; field?: string } | null>(null)
   const [busy, setBusy] = useState(false)
   const [sent, setSent] = useState<CommentView | null>(null)
+  /** The name chosen in the form (honor system) and that name's Feedback Quest (null while loading). */
+  const [reviewerId, setReviewerId] = useState('')
+  const [selQuest, setSelQuest] = useState<QuestItem[] | null>(null)
+  useEffect(() => {
+    let live = true
+    setSelQuest(null)
+    if (reviewerId) backend.questOf(reviewerId).then((q) => { if (live) setSelQuest(q) }).catch(() => { if (live) setSelQuest([]) })
+    return () => { live = false }
+  }, [backend, reviewerId])
 
   const load = useCallback(async () => {
     try { setComments(await backend.comments(student.id)); setLoadErr(null) } catch (e) { setLoadErr(e instanceof BackendError ? e.message : 'Could not load comments.') }
@@ -106,10 +117,27 @@ export function ProfileModal({ student, onClose, onExploreAnother, onFindNext }:
   const startForm = (edit: CommentView | null) => {
     setErr(null); setEditing(edit)
     setForm(edit ? { pronouns: edit.pronouns ?? '', enjoyed: edit.enjoyed, suggestion: edit.suggestion } : { pronouns: form.pronouns, enjoyed: '', suggestion: '' })
-    setStep(me ? 'form' : 'signin')
+    setReviewerId(edit ? edit.reviewerId : me && me.course === student.course && me.studentId !== student.id ? me.studentId : '')
+    setStep('form')
   }
+  /** Classmates who may appear in the dropdown: same course, not the project's owner, not hidden. */
+  const classmates = students.filter((s) => s.course === student.course && s.id !== student.id && !s.hidden)
+  const reviewedHere = new Set((comments ?? []).map((c) => c.reviewerId))
+  const selected = students.find((s) => s.id === reviewerId) ?? null
+  const selDone = (selQuest ?? []).filter((q) => q.status !== 'pending').length
+  /** Why the SELECTED name cannot send this review (display only; the server checks again). */
+  const selBlock: RuleError | null = editing || !reviewerId ? null
+    : reviewedHere.has(reviewerId) ? 'already_reviewed'
+      : selQuest === null ? null
+        : selQuest.some((q) => q.projectId === student.id && q.status === 'pending') ? null
+          : status.allowExtra && selDone >= BASE_SLOTS ? null : 'not_assigned'
+  const selBlockText = selBlock === 'not_assigned'
+    ? `This world isn't on ${selected?.firstName ?? 'that student'}'s Feedback Quest list — but anyone can explore it! Use “Find My Next Review” to reach the assigned projects.`
+    : selBlock ? RULE_MESSAGES[selBlock] : ''
   const toPreview = (e: React.FormEvent) => {
     e.preventDefault()
+    if (!editing && !reviewerId) { setErr({ msg: 'Choose your name from the list first.', field: 'reviewer' }); return }
+    if (selBlock) { setErr({ msg: selBlockText, field: 'reviewer' }); return }
     const v = validateFeedback(form)
     if (!v.ok) {
       const which = v.field === 'enjoyed' ? 'Question 1' : v.field === 'suggestion' ? 'Question 2' : 'Pronouns'
@@ -120,7 +148,7 @@ export function ProfileModal({ student, onClose, onExploreAnother, onFindNext }:
   const send = async () => {
     setBusy(true); setErr(null)
     try {
-      const c = editing ? await backend.update(editing.id, form) : await backend.submit(student.id, form)
+      const c = editing ? await backend.update(editing.id, form) : await backend.submit(student.id, form, reviewerId)
       setSent(c)
       await Promise.all([load(), refresh()])
       setStep('done')
@@ -130,7 +158,8 @@ export function ProfileModal({ student, onClose, onExploreAnother, onFindNext }:
     } finally { setBusy(false) }
   }
 
-  const previewText = me ? composeComment({ reviewerName: me.fullName, pronouns: form.pronouns, enjoyed: form.enjoyed, suggestion: form.suggestion }) : ''
+  const previewName = editing ? editing.reviewerName : selected?.fullName ?? ''
+  const previewText = previewName ? composeComment({ reviewerName: previewName, pronouns: form.pronouns, enjoyed: form.enjoyed, suggestion: form.suggestion }) : ''
   const nowDone = !!me && me.completed >= me.required
 
   return (
@@ -163,9 +192,8 @@ export function ProfileModal({ student, onClose, onExploreAnother, onFindNext }:
             <h3><MessageCircleHeart size={20} aria-hidden="true" /> Peer thoughts <span className="count-pill" data-testid="comment-count" title={`${capacity - BASE_SLOTS > 0 ? `${BASE_SLOTS} standard + ${capacity - BASE_SLOTS} additional slot(s)` : `${BASE_SLOTS} standard slots`}`}>{published} / {capacity}</span></h3>
             <p className="slots-line"><SlotDots published={published} capacity={capacity} className="big" /> <span className="hint">{capacity > BASE_SLOTS ? `${BASE_SLOTS} standard slots + ${capacity - BASE_SLOTS} additional` : `${BASE_SLOTS} standard slots`}</span></p>
             {loadErr && <p className="form-error">{loadErr}</p>}
-            {MODE === 'live' && !me && <p className="hint">Sign in to read your classmates' comments.</p>}
             {comments && comments.length === 0 && <p className="hint">No thoughts yet — the first comment will appear here.</p>}
-            <ul className="comment-list">{comments?.map((c) => <CommentCard key={c.id} c={c} mine={c.reviewerId === me?.studentId} onEdit={status.open ? () => startForm(c) : undefined} />)}</ul>
+            <ul className="comment-list">{comments?.map((c) => <CommentCard key={c.id} c={c} mine={backend.canEdit(c)} onEdit={status.open ? () => startForm(c) : undefined} />)}</ul>
             {full && !mineHere && (
               <div className="full-message" data-testid="full-message" role="note">
                 <strong>{FULL_TITLE}</strong>
@@ -185,14 +213,7 @@ export function ProfileModal({ student, onClose, onExploreAnother, onFindNext }:
         </div>
       )}
 
-      {step === 'signin' && (
-        <div className="form-step">
-          <button type="button" className="btn small ghost back" onClick={() => setStep('profile')}><ArrowLeft size={16} aria-hidden="true" /> Back</button>
-          <SignInPanel onDone={() => setStep('profile')} />
-        </div>
-      )}
-
-      {(step === 'form' || step === 'preview') && me && (
+      {(step === 'form' || step === 'preview') && (
         <div className="form-step">
           <button type="button" className="btn small ghost back" onClick={() => setStep(step === 'preview' ? 'form' : 'profile')}><ArrowLeft size={16} aria-hidden="true" /> Back</button>
           <header className="form-head">
@@ -206,11 +227,22 @@ export function ProfileModal({ student, onClose, onExploreAnother, onFindNext }:
           {step === 'form' ? (
             <form className="feedback-form" onSubmit={toPreview} data-testid="feedback-form" noValidate>
               <div className="name-row">
-                <label className="field"><span>First name</span><input value={me.firstName} readOnly aria-readonly="true" data-testid="fb-first" /></label>
-                <label className="field"><span>Last name</span><input value={me.lastName} readOnly aria-readonly="true" data-testid="fb-last" /></label>
+                <label className="field name-pick"><span>Your name</span>
+                  <select value={reviewerId} onChange={(e) => { setReviewerId(e.target.value); setErr(null) }} disabled={!!editing} required data-testid="fb-who" aria-invalid={err?.field === 'reviewer'} data-autofocus>
+                    <option value="">Choose your name…</option>
+                    {COURSES[student.course].sections.map((sec) => (
+                      <optgroup key={sec.key} label={sec.code}>
+                        {classmates.filter((s) => s.section === sec.key).sort((a, b) => a.lastName.localeCompare(b.lastName)).map((s) => (
+                          <option key={s.id} value={s.id} disabled={!editing && reviewedHere.has(s.id)}>{s.fullName}{!editing && reviewedHere.has(s.id) ? ' (already reviewed)' : ''}</option>
+                        ))}
+                      </optgroup>
+                    ))}
+                  </select>
+                </label>
                 <label className="field"><span>Pronouns <em>(optional)</em></span><input value={form.pronouns} maxLength={PRONOUNS_MAX} onChange={(e) => setForm({ ...form, pronouns: e.target.value })} placeholder="e.g. she/her, he/him, they/them" data-testid="fb-pronouns" aria-invalid={err?.field === 'pronouns'} /></label>
               </div>
-              <p className="hint id-note">{MODE === 'live' ? 'Your name comes from your access code, so classmates know the comment is really from you.' : 'Demo: your name comes from the classmate you chose. In the real classroom it comes from your private access code.'}</p>
+              <p className="hint id-note" data-testid="honor-note">{HONOR_NOTE} Only {COURSES[student.course].code} students can review this world.</p>
+              {selBlock && <p className="hint block-sel" data-testid="sel-block">{selBlockText}</p>}
               <label className="field">
                 <span>{Q1}</span>
                 <textarea rows={4} value={form.enjoyed} maxLength={TEXT_MAX} onChange={(e) => setForm({ ...form, enjoyed: e.target.value })} data-testid="fb-q1" aria-invalid={err?.field === 'enjoyed'} placeholder="I loved how…" data-autofocus />
@@ -243,7 +275,7 @@ export function ProfileModal({ student, onClose, onExploreAnother, onFindNext }:
         <div className="done-step" data-testid="done">
           <Celebrate />
           <CreatureSvg spec={spec} size={140} animate={!reducedMotion} active />
-          <h2 id="profile-title">Thank you{me ? `, ${me.firstName}` : ''}!</h2>
+          <h2 id="profile-title">Thank you{sent ? `, ${students.find((s) => s.id === sent.reviewerId)?.firstName ?? ''}` : ''}!</h2>
           <p>Your thoughts are on {student.firstName}'s desk:</p>
           {sent && <blockquote className="comment preview-card" data-testid="done-text">{composeComment({ reviewerName: sent.reviewerName, pronouns: sent.pronouns, enjoyed: sent.enjoyed, suggestion: sent.suggestion })}</blockquote>}
           {me && <p className="progress-line" data-testid="done-progress">Your Feedback Quest: {Math.min(me.completed, me.required)} / {me.required} completed</p>}

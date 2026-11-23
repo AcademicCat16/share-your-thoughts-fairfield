@@ -39,12 +39,13 @@ Re-importing is safe: a returning student keeps their id, seat and creature (com
 “unchecked” until the next audit. The workbook is **never** committed. See [`docs/PRIVACY_REVIEW.md`](docs/PRIVACY_REVIEW.md) for
 exactly what is public and how to hide a student.
 
-Live mode only (after `supabase/SETUP.md`):
+Live mode (production Supabase, see `supabase/SETUP.md`): students choose their **own name** from a list (honor system — it
+does not verify identity) and every rule is checked on the server for that name; the instructor signs in with e-mail +
+password.
 
 ```bash
-npm run live-sql            # → supabase/seed/roster_upsert.sql (paste into the Supabase SQL editor)
-npm run access-codes        # → private/access_codes_<date>.csv (hand out privately) + private/access_codes_upsert.sql (hashes only)
-npm run access-codes -- --only s01-03,pm-07   # replace lost codes
+npx supabase db push --remote   # apply new migrations (after --dry-run)
+npm run verify:prod             # read-only security checks of the production database
 ```
 
 ## Development

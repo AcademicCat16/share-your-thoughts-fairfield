@@ -4,19 +4,18 @@
 project_id = "fairfield-interactive-worlds"
 
 [auth]
-# Instructor magic links return here (GitHub Pages).
 site_url = "https://academiccat16.github.io/share-your-thoughts-fairfield/"
 additional_redirect_urls = ["https://academiccat16.github.io/share-your-thoughts-fairfield/"]
-# Students start with an anonymous session, then prove who they are with their private access code.
-# (Supabase refuses anonymous sign-ins when sign-ups are disabled, so sign-ups stay on. The instructor e-mail
-#  link is sent with shouldCreateUser=false, so it never creates accounts.)
-enable_signup = true
-enable_anonymous_sign_ins = true
+# Students use the honor-system name list (migration 002) and need NO accounts or sessions.
+# The instructor account is created in the dashboard, so nobody may sign up through the API.
+enable_signup = false
+enable_anonymous_sign_ins = false
+# Instructor passwords: at least 12 characters.
+minimum_password_length = 12
 
 [auth.rate_limit]
-# Anonymous sign-ins per hour per IP address. A whole class may share one campus IP.
 anonymous_users = 150
 
 [auth.email]
-# The e-mail provider must be on for the instructor's magic link.
+# E-mail + password sign-in for the instructor.
 enabled = true

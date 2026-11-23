@@ -20,6 +20,7 @@ const S = roster.students
 const isOk = (s) => !s.hidden && s.urlStatus === 'valid' && s.link?.status === 'working'
 const P1101 = S.filter((s) => s.course === '1101'); const P2241 = S.filter((s) => s.course === '2241')
 const byName = (n) => S.find((s) => s.fullName === n)
+const byId = (id) => S.find((s) => s.id === id)
 
 const server = spawn(process.execPath, ['node_modules/vite/bin/vite.js', 'preview', '--port', String(PORT), '--strictPort'], { stdio: 'pipe' })
 const stopServer = () => { try { server.kill() } catch { /* ignore */ } }
@@ -56,7 +57,7 @@ async function signIn(p, studentId) {
   await p.click('[data-testid=signin-submit]')
   await p.waitForSelector('[data-testid=me-chip]')
 }
-async function signOut(p) { await p.click('[aria-label="Sign out"]'); await p.waitForSelector('[data-testid=header-signin]') }
+async function signOut(p) { await p.click('[data-testid=me-clear]'); await p.waitForSelector('[data-testid=header-signin]') }
 async function openDesk(p, id) { await p.click(`[data-testid=desk-${id}]`); await p.waitForSelector('[data-testid=profile-modal]') }
 async function closeModal(p) { await p.keyboard.press('Escape'); await p.waitForSelector('[data-testid=profile-modal]', { state: 'detached' }) }
 async function leaveFeedback(p, q1 = GOOD1, q2 = GOOD2, pronouns = '') {
@@ -188,8 +189,11 @@ await test('Feedback Quest: four distinct assigned classmates in your course; Fi
   const labels = await p.$$eval('.feedback-form .field > span', (els) => els.map((e) => e.textContent.trim()))
   assert(labels.includes('What did you enjoy most about this project? Share a specific compliment!'), 'Q1')
   assert(labels.includes('What is one improvement or new feature you would suggest?'), 'Q2')
-  eq(await p.inputValue('[data-testid=fb-first]'), me.firstName, 'verified first name'); eq(await p.inputValue('[data-testid=fb-last]'), me.lastName, 'verified last name')
-  assert(await p.locator('[data-testid=fb-first]').getAttribute('readonly') !== null, 'name not editable')
+  eq(await p.inputValue('[data-testid=fb-who]'), me.id, 'the chosen name is preselected in the dropdown')
+  const opts = await p.$$eval('[data-testid=fb-who] option', (os) => os.map((o) => o.value).filter(Boolean))
+  assert(!opts.includes(target.id), "the project's owner is not in the dropdown")
+  assert(opts.every((id) => S.find((x) => x.id === id)?.course === '2241'), 'only MKTG 2241 names in the dropdown')
+  assert((await text(p, '[data-testid=honor-note]')).includes('Honor system'), 'honor-system note shown')
   await p.fill('[data-testid=fb-q1]', 'nice'); await p.fill('[data-testid=fb-q2]', GOOD2); await p.click('[data-testid=fb-preview]')
   assert((await p.textContent('[data-testid=form-error]')).includes('Question 1'), 'too short rejected')
   await p.fill('[data-testid=fb-q1]', 'This is stupid but the music is ok'); await p.click('[data-testid=fb-preview]')
@@ -204,6 +208,44 @@ await test('Feedback Quest: four distinct assigned classmates in your course; Fi
   assert((await text(p, '[data-testid=done-slots]')).startsWith(`${target.firstName}'s world now has 1 of`), 'remaining slots updated')
   eq(await text(p, '[data-testid=my-progress]'), 'Your Feedback Quest: 1 / 4 completed', 'header progress')
   await shot(p, '08_done')
+  await p.context().close()
+}, { smoke: true })
+
+await test('name dropdown (no name chosen yet): own course only, owner left out, unassigned name blocked, submit remembers the name, duplicate name disabled', async () => {
+  const p = await newPage(); await room(p, '1101')
+  const st = await demoState(p)
+  const P = P1101.find((s) => st.assignments.some((a) => a.projectId === s.id && a.status === 'pending')).id
+  const R = st.assignments.find((a) => a.projectId === P && a.status === 'pending').reviewerId
+  const notR = P1101.find((s) => s.id !== P && s.id !== R && !st.assignments.some((a) => a.projectId === P && a.reviewerId === s.id)).id
+  eq(await p.locator('[data-testid=me-chip]').count(), 0, 'no name chosen yet')
+  await openDesk(p, P)
+  assert(await p.isEnabled('[data-testid=leave-thoughts]'), 'Leave Your Thoughts works without choosing a name first')
+  await p.click('[data-testid=leave-thoughts]'); await p.waitForSelector('[data-testid=feedback-form]')
+  eq(await p.inputValue('[data-testid=fb-who]'), '', 'nothing preselected')
+  const opts = await p.$$eval('[data-testid=fb-who] option', (os) => os.map((o) => o.value).filter(Boolean))
+  eq(opts.length, 27, '27 MKTG 1101 classmates (everyone but the owner)')
+  assert(!opts.includes(P), 'owner left out'); assert(opts.every((id) => id.startsWith('pm-')), 'MKTG 1101 names only')
+  await p.fill('[data-testid=fb-q1]', GOOD1); await p.fill('[data-testid=fb-q2]', GOOD2)
+  await p.click('[data-testid=fb-preview]')
+  assert((await text(p, '[data-testid=form-error]')).includes('Choose your name'), 'a name is required')
+  await p.selectOption('[data-testid=fb-who]', notR)
+  await p.waitForSelector('[data-testid=sel-block]')
+  assert((await text(p, '[data-testid=sel-block]')).includes('Feedback Quest'), 'unassigned name: friendly block')
+  await p.click('[data-testid=fb-preview]'); eq(await p.locator('[data-testid=preview]').count(), 0, 'cannot preview for an unassigned name')
+  await p.selectOption('[data-testid=fb-who]', R)
+  await p.waitForSelector('[data-testid=sel-block]', { state: 'detached' })
+  await p.click('[data-testid=fb-preview]'); await p.waitForSelector('[data-testid=preview]')
+  assert((await text(p, '[data-testid=preview-text]')).startsWith(byId(R).fullName), 'preview uses the selected name')
+  await p.click('[data-testid=fb-submit]'); await p.waitForSelector('[data-testid=done]')
+  assert((await text(p, '#profile-title')).includes(byId(R).firstName), 'thank-you uses the selected name')
+  await p.waitForSelector('[data-testid=me-chip]')
+  assert((await text(p, '[data-testid=me-chip]')).includes(byId(R).fullName), 'the name is remembered on this device')
+  await closeModal(p); await signOut(p)
+  await openDesk(p, P)
+  await p.click('[data-testid=leave-thoughts]'); await p.waitForSelector('[data-testid=feedback-form]')
+  const dis = await p.waitForFunction((id) => { const o = document.querySelector(`[data-testid=fb-who] option[value="${id}"]`); return o && o.disabled && o.textContent.includes('already reviewed') }, R, { timeout: 5000 }).then(() => true).catch(() => false)
+  assert(dis, 'a name that already reviewed this project is disabled')
+  await shot(p, '06b_name_dropdown')
   await p.context().close()
 }, { smoke: true })
 

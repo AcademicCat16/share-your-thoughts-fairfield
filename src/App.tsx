@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { BookOpen, ClipboardList, Volume2, VolumeX, LogOut, Info, Store, MonitorSmartphone, Home } from 'lucide-react'
-import { AppProvider, useApp, go, routeHref, isCourseRoute, MODE, LIVE_MISCONFIGURED, makeDemoBackend, type Route } from './lib/app.tsx'
+import { AppProvider, useApp, go, routeHref, isCourseRoute, MODE, LIVE_MISCONFIGURED, makeDemoBackend, BUNDLED_ROSTER, type Route } from './lib/app.tsx'
 import type { Backend } from './lib/backend.ts'
 import { ClassroomPage } from './pages/ClassroomPage.tsx'
 import { HomePage, HOME_TITLE } from './pages/HomePage.tsx'
@@ -36,14 +36,14 @@ function Header() {
           <div className="me-chip" data-testid="me-chip">
             <span className="progress-ring" style={{ '--p': Math.min(1, me.completed / me.required) } as React.CSSProperties} aria-hidden="true" />
             <span><strong>{me.fullName}</strong><small data-testid="my-progress">Your Feedback Quest: {Math.min(me.completed, me.required)} / {me.required} completed</small></span>
-            <button type="button" className="icon-btn" onClick={async () => { await backend.signOut(); await refresh(); say('Signed out.') }} aria-label="Sign out" title="Sign out"><LogOut size={16} /></button>
+            <button type="button" className="icon-btn" onClick={async () => { await backend.signOut(); await refresh(); say('Name cleared on this device.') }} aria-label="Not you? Change name" title="Not you? Change name" data-testid="me-clear"><LogOut size={16} /></button>
           </div>
         ) : (
-          <button type="button" className="btn small" onClick={() => setSignin(true)} data-testid="header-signin">{MODE === 'live' ? 'Sign in' : 'Choose who you are (demo)'}</button>
+          <button type="button" className="btn small" onClick={() => setSignin(true)} data-testid="header-signin">{MODE === 'live' ? 'Choose your name' : 'Choose who you are (demo)'}</button>
         )}
         <button type="button" className="icon-btn" onClick={toggleSound} aria-pressed={sound} aria-label={sound ? 'Turn ambient sound off' : 'Turn ambient sound on'} title="Ambient sound (off by default)" data-testid="sound-toggle">{sound ? <Volume2 size={18} /> : <VolumeX size={18} />}</button>
       </div>
-      {signin && <Modal title="Sign in" onClose={() => setSignin(false)} className="small-modal"><SignInPanel onDone={() => setSignin(false)} /></Modal>}
+      {signin && <Modal title="Choose your name" onClose={() => setSignin(false)} className="small-modal"><SignInPanel onDone={() => setSignin(false)} /></Modal>}
     </header>
   )
 }
@@ -81,7 +81,7 @@ export default function App() {
   useEffect(() => {
     if (MODE !== 'live') return
     import('./lib/liveBackend.ts')
-      .then((m) => setBackend(m.createLiveBackend(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY)))
+      .then((m) => setBackend(m.createLiveBackend(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY, BUNDLED_ROSTER.students)))
       .catch(() => setFailed(true))
   }, [])
   if (failed) return <p className="loading-3d">Could not load the classroom. Please refresh the page.</p>

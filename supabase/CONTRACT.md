@@ -44,7 +44,19 @@ Rule errors are raised as `RAISE EXCEPTION '<code>'` with exactly the codes in `
 | `audit_log` | `at`, `actor`, `action`, `detail jsonb` |
 | `blocked_terms` | mirrors `BLOCKED_TERMS` in `shared/rules.ts` |
 
-## Student functions
+## Honor-system functions (migration 002 — what the app uses; `anon` + `authenticated`)
+
+| function | returns | notes |
+|---|---|---|
+| `get_project_comments(p_project_id text)` | `(id, project_id, reviewer_id, reviewer_name, pronouns, enjoyed, suggestion, created_at, updated_at)` | published comments of an active, visible project |
+| `get_student_quest(p_student_id text)` | `(project_id, status, comment_id, published, capacity)` | the SELECTED name's quest (pending, completed, extra) |
+| `submit_feedback(p_reviewer_id, p_project_id, p_pronouns, p_enjoyed, p_suggestion)` | comment row + `edit_token` | rule order: `closed` → `unknown_reviewer` → `project_unavailable` → `self_review` → `wrong_course` → text → lock pair → `rate_limited` (source, then name) → `already_reviewed` → assignment (`not_assigned` / extra) → `project_full` |
+| `edit_feedback(p_comment_id uuid, p_edit_token, p_pronouns, p_enjoyed, p_suggestion)` | comment row | `not_found` → `not_author` (token) → `closed` → text → `rate_limited`; never uses a slot |
+
+Identity is the **selected** name (honor system). Settings added: `max_anon_writes_per_source_hour` (240),
+`max_anon_writes_global_hour` (600). New private table `source_events (source_hash, kind, at)`.
+
+## Student functions (migration 001 — legacy access-code path, unused by the app)
 
 | function | grant | returns | behaviour |
 |---|---|---|---|
