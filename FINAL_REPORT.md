@@ -169,17 +169,25 @@ The screenshots in `tests/output/live/` were looked at.
 real Supabase servers. The official PostgREST binary was not used locally (its download was not permitted on this machine),
 so the stand-in reproduces only the parts of Supabase's API the site uses.
 
-## 14. GitHub commit information
+## 14. GitHub commit information — COMPLETED
 
-See the end of this report (filled in after the push).
+Commit `435160e` on `main` of `AcademicCat16/share-your-thoughts-fairfield`, pushed as a normal fast-forward from `d6a03e4`
+(no force-push; history intact). The rollback tag `v1-demo-2026-11-19` is on GitHub. This report update is a small follow-up commit.
 
-## 15. Deployment status
+## 15. Deployment status — DEPLOYED (Demo mode)
 
-See the end of this report (filled in after the push).
+GitHub Actions run 45140963924 for `435160e`: the **build** job passed every step on Ubuntu: lint, unit, database, build,
+publication check, Demo e2e in Chrome and Edge, and the Live-mode two-browser test. The **deploy** job then published to
+GitHub Pages. Live mode is NEEDS CONFIGURATION (section 17).
 
 ## 16. Verified public website URL
 
-https://academiccat16.github.io/share-your-thoughts-fairfield/ — see the verification at the end of this report.
+https://academiccat16.github.io/share-your-thoughts-fairfield/ — **DEPLOYED, verified 2026-11-23** in Chrome after the deploy:
+* the homepage shows both classroom cards (28 / 58 students; 28 and 53 worlds ready);
+* `#/1101` shows 28 desks with the 1101 creatures and floor signs;
+* `#/2241` shows 58 desks with the section filter;
+* `#/guide` loads;
+* the Demo Mode banner is on every page, with no page errors.
 
 ## 17. Instructor actions still required
 
