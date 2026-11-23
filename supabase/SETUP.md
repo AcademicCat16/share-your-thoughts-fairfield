@@ -72,6 +72,11 @@ insert into public.instructors (email) values ('your.name@fairfield.edu') on con
 
 Only a real e-mail sign-in counts. An anonymous session that somehow carries the same address is refused.
 
+Then create your **Auth user** once, because the dashboard's sign-in link is sent with "do not create new accounts":
+**Authentication → Users → Add user → Create new user**, enter the same e-mail, set any long random password (you never
+use it; you sign in by e-mail link) and tick **Auto Confirm User**. Without this step the sign-in link is refused with
+"Signups not allowed for otp".
+
 ## 5. Check the project links, then upload the roster
 
 On your own computer, in this repository, run these **in this order**:

@@ -1,0 +1,22 @@
+# Supabase CLI config for Fairfield Interactive Worlds.
+# Deliberately MINIMAL: `supabase config push` changes only the properties declared here and leaves every other
+# production setting as it is. Preview with `npx supabase config diff` before any push.
+project_id = "fairfield-interactive-worlds"
+
+[auth]
+# Instructor magic links return here (GitHub Pages).
+site_url = "https://academiccat16.github.io/share-your-thoughts-fairfield/"
+additional_redirect_urls = ["https://academiccat16.github.io/share-your-thoughts-fairfield/"]
+# Students start with an anonymous session, then prove who they are with their private access code.
+# (Supabase refuses anonymous sign-ins when sign-ups are disabled, so sign-ups stay on. The instructor e-mail
+#  link is sent with shouldCreateUser=false, so it never creates accounts.)
+enable_signup = true
+enable_anonymous_sign_ins = true
+
+[auth.rate_limit]
+# Anonymous sign-ins per hour per IP address. A whole class may share one campus IP.
+anonymous_users = 150
+
+[auth.email]
+# The e-mail provider must be on for the instructor's magic link.
+enabled = true

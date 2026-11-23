@@ -17,7 +17,9 @@
     "audit-links": "node scripts/audit-links.mjs",
     "access-codes": "node scripts/generate-access-codes.ts",
     "live-sql": "node scripts/build-live-sql.ts",
-    "check:publish": "node scripts/check-publish.mjs"
+    "check:publish": "node scripts/check-publish.mjs",
+    "verify:prod": "node tests/prod/verify-lockdown.mjs",
+    "plan-assignments-sql": "node scripts/plan-assignments-sql.ts"
   },
   "dependencies": {
     "@fontsource/fredoka": "5.3.0",
@@ -45,6 +47,7 @@
     "globals": "16.5.0",
     "pg": "8.23.1",
     "playwright-core": "1.63.0",
+    "supabase": "3.2.0",
     "typescript": "5.9.3",
     "typescript-eslint": "8.46.4",
     "vite": "8.3.4"
