@@ -1,19 +1,28 @@
 import { useCallback, useEffect, useState } from 'react'
-import { ExternalLink, MessageCircleHeart, PencilLine, Sparkles, Eye, ArrowLeft, Send } from 'lucide-react'
-import type { Student } from '../../shared/roster.ts'
+import { ExternalLink, MessageCircleHeart, PencilLine, Sparkles, Eye, ArrowLeft, Send, Shuffle, Compass, PartyPopper } from 'lucide-react'
+import { isReviewable, unavailableReason, type Student } from '../../shared/roster.ts'
 import { composeComment } from '../../shared/compose.ts'
-import { MAX_COMMENTS_PER_PROJECT, MAX_REVIEWS_PER_REVIEWER, PRONOUNS_MAX, TEXT_MAX, TEXT_MIN, validateFeedback, RULE_MESSAGES } from '../../shared/rules.ts'
-import { CREATURE_BY_ID, useApp, MODE } from '../lib/app.tsx'
+import { BASE_SLOTS, PRONOUNS_MAX, TEXT_MAX, TEXT_MIN, validateFeedback, RULE_MESSAGES, type RuleError } from '../../shared/rules.ts'
+import { CREATURE_BY_ID, useApp, MODE, slotsOf, markExplored } from '../lib/app.tsx'
 import { BackendError, type CommentView } from '../lib/backend.ts'
 import { Modal } from './Modal.tsx'
 import { CreatureSvg } from './CreatureSvg.tsx'
 import { SignInPanel } from './SignIn.tsx'
 import { Celebrate } from './Celebrate.tsx'
+import { SlotDots } from './Classroom2D.tsx'
+import { CONGRATS_TITLE, CONGRATS_TEXT, CONGRATS_MORE } from './QuestPanel.tsx'
 
-/** Only http(s) links that parse are ever turned into a button. */
+export const FULL_TITLE = 'All comment slots are full!'
+export const FULL_TEXT = 'This project has received its feedback for now. You can still explore the website and read what your classmates shared!'
+export const FORM_TITLE = 'Leave Your Thoughts'
+export const FORM_SUBTITLE = 'Tell your classmate what you loved and share one idea that could make it even better!'
+export const Q1 = 'What did you enjoy most about this project? Share a specific compliment!'
+export const Q2 = 'What is one improvement or new feature you would suggest?'
+
+/** Only https/http links that parse are ever turned into a button. */
 export function safeProjectUrl(s: Student): string | null {
-  if (s.urlStatus !== 'valid' || !s.url) return null
-  try { const u = new URL(s.url); return u.protocol === 'https:' || u.protocol === 'http:' ? u.href : null } catch { return null }
+  if (!isReviewable(s)) return null
+  try { const u = new URL(s.url!); return u.protocol === 'https:' || u.protocol === 'http:' ? u.href : null } catch { return null }
 }
 const fmtDate = (iso: string) => new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
 
@@ -31,10 +40,18 @@ export function CommentCard({ c, mine, onEdit }: { c: CommentView; mine: boolean
   )
 }
 
+const UNAVAILABLE: Record<string, string> = {
+  missing: "This project hasn't arrived yet!",
+  invalid: "This project's link can't be opened by classmates yet.",
+  broken: "This project's website isn't loading right now.",
+  unchecked: "This project's link is waiting to be checked.",
+  hidden: 'This seat is reserved.',
+}
+
 type Step = 'profile' | 'signin' | 'form' | 'preview' | 'done'
 
-export function ProfileModal({ student, onClose }: { student: Student; onClose: () => void }) {
-  const { backend, me, counts, refresh, reducedMotion, byId } = useApp()
+export function ProfileModal({ student, onClose, onExploreAnother, onFindNext }: { student: Student; onClose: () => void; onExploreAnother: () => void; onFindNext: () => void }) {
+  const { backend, me, status, quest, refresh, reducedMotion } = useApp()
   const spec = CREATURE_BY_ID.get(student.creatureId)
   const url = safeProjectUrl(student)
   const [comments, setComments] = useState<CommentView[] | null>(null)
@@ -44,30 +61,47 @@ export function ProfileModal({ student, onClose }: { student: Student; onClose: 
   const [form, setForm] = useState({ pronouns: '', enjoyed: '', suggestion: '' })
   const [err, setErr] = useState<{ msg: string; field?: string } | null>(null)
   const [busy, setBusy] = useState(false)
+  const [sent, setSent] = useState<CommentView | null>(null)
 
   const load = useCallback(async () => {
     try { setComments(await backend.comments(student.id)); setLoadErr(null) } catch (e) { setLoadErr(e instanceof BackendError ? e.message : 'Could not load comments.') }
   }, [backend, student.id])
-  useEffect(() => { if (url) load() }, [load, url])
+  useEffect(() => { if (url) load() }, [load, url, me?.studentId])
 
   if (!url || !spec) {
+    const reason = unavailableReason(student) ?? 'missing'
     return (
-      <Modal title={`${student.fullName}'s desk`} onClose={onClose} className="profile empty-profile" testId="profile-modal">
+      <Modal title={student.hidden ? 'Reserved seat' : `${student.fullName}'s desk`} onClose={onClose} className="profile empty-profile" testId="profile-modal">
         <div className="empty-hero" aria-hidden="true"><span className="empty-chair big"><span className="chair-back" /></span><span className="floating-envelope">✉</span></div>
-        <h2 className="profile-name">{student.fullName}</h2>
+        <h2 className="profile-name">{student.hidden ? 'Reserved seat' : student.fullName}</h2>
         <p className="section-chip">{student.sectionCode}</p>
-        <p className="empty-message" data-testid="empty-message">This project hasn't arrived yet!</p>
-        {student.urlStatus === 'invalid' && <p className="hint">The submitted link can't be opened by classmates (for example, a link to a file on someone's own computer).</p>}
-        <button type="button" className="btn" onClick={onClose}>Back to the classroom</button>
+        <p className="empty-message" data-testid="empty-message">{UNAVAILABLE[reason]}</p>
+        {!student.hidden && <p className="hint">The chair stays empty until the project is ready, so it can't receive reviews yet. {me?.studentId === student.id ? "You can still review your classmates' worlds!" : 'There are plenty of other worlds to explore!'}</p>}
+        <div className="row center">
+          <button type="button" className="btn" onClick={onExploreAnother} data-testid="modal-explore-another"><Shuffle size={16} aria-hidden="true" /> Explore Another World</button>
+          <button type="button" className="btn primary" onClick={onClose}>Back to the classroom</button>
+        </div>
       </Modal>
     )
   }
 
-  const received = comments ? comments.length : counts[student.id] ?? 0
-  const full = received >= MAX_COMMENTS_PER_PROJECT
+  const sl = slotsOf(status, student.id)
+  const published = comments ? comments.length : sl.published
+  const capacity = Math.max(sl.capacity, published)
+  const full = published >= capacity
   const mineHere = comments?.find((c) => c.reviewerId === me?.studentId) ?? null
   const isSelf = me?.studentId === student.id
-  const atLimit = !!me && me.reviewsWritten >= MAX_REVIEWS_PER_REVIEWER && !mineHere
+  const pendingHere = quest.some((q) => q.projectId === student.id && q.status === 'pending')
+  const questDone = !!me && me.completed >= me.required
+  /** Why the button is off, computed for display only — the server decides for real. */
+  const blocker: RuleError | 'paused' | null = !me ? (!status.open ? 'paused' : full ? 'project_full' : null)
+    : !status.open ? 'paused'
+      : isSelf ? 'self_review'
+        : me.course !== student.course ? 'wrong_course'
+          : mineHere ? 'already_reviewed'
+            : full ? 'project_full'
+              : !pendingHere && !(questDone && status.allowExtra) ? 'not_assigned'
+                : null
 
   const startForm = (edit: CommentView | null) => {
     setErr(null); setEditing(edit)
@@ -86,18 +120,18 @@ export function ProfileModal({ student, onClose }: { student: Student; onClose: 
   const send = async () => {
     setBusy(true); setErr(null)
     try {
-      if (editing) await backend.update(editing.id, form); else await backend.submit(student.id, form)
+      const c = editing ? await backend.update(editing.id, form) : await backend.submit(student.id, form)
+      setSent(c)
       await Promise.all([load(), refresh()])
       setStep('done')
     } catch (e) {
       setErr({ msg: e instanceof BackendError ? e.message : 'Could not send your feedback. Please try again.' })
-      if (e instanceof BackendError && ['project_full', 'already_reviewed', 'self_review', 'reviewer_limit'].includes(e.code)) { await Promise.all([load(), refresh()]); setStep('profile') }
+      if (e instanceof BackendError && ['project_full', 'already_reviewed', 'self_review', 'not_assigned', 'wrong_course'].includes(e.code)) { await Promise.all([load(), refresh()]); setStep('profile') }
     } finally { setBusy(false) }
   }
 
   const previewText = me ? composeComment({ reviewerName: me.fullName, pronouns: form.pronouns, enjoyed: form.enjoyed, suggestion: form.suggestion }) : ''
-  const meRow = me ? byId.get(me.studentId) : undefined
-  const meStudent = meRow ? { first: meRow.firstName, last: meRow.lastName } : null
+  const nowDone = !!me && me.completed >= me.required
 
   return (
     <Modal title={`${student.fullName}'s world`} onClose={onClose} className={`profile cat-${spec.category.toLowerCase()}`} labelledBy="profile-title" testId="profile-modal">
@@ -116,25 +150,37 @@ export function ProfileModal({ student, onClose }: { student: Student; onClose: 
               <p><strong>Ability:</strong> {spec.ability}</p>
               <p className="desc">{spec.description}</p>
             </div>
-            <a className="btn primary explore" href={url} target="_blank" rel="noopener noreferrer" data-testid="explore-link">
+            <a className="btn primary explore" href={url} target="_blank" rel="noopener noreferrer" data-testid="explore-link" onClick={() => markExplored(student.id)}>
               <ExternalLink size={18} aria-hidden="true" /> Explore This World
             </a>
-            <p className="url-line" title={url}>{url.replace(/^https?:\/\//, '')} <span className="hint">(opens in a new tab)</span></p>
+            <p className="url-line" title={url}><span className="url-text">{url.replace(/^https?:\/\//, '')}</span> <span className="hint nowrap">(opens in a new tab)</span></p>
+            <div className="row">
+              <button type="button" className="btn small" onClick={onExploreAnother} data-testid="modal-explore-another"><Shuffle size={15} aria-hidden="true" /> Explore Another World</button>
+              {me && !nowDone && <button type="button" className="btn small ghost" onClick={onFindNext} data-testid="modal-find-next"><Compass size={15} aria-hidden="true" /> Find My Next Review</button>}
+            </div>
           </div>
           <div className="profile-comments">
-            <h3><MessageCircleHeart size={20} aria-hidden="true" /> Peer thoughts <span className="count-pill" data-testid="comment-count">{received} / {MAX_COMMENTS_PER_PROJECT}</span></h3>
+            <h3><MessageCircleHeart size={20} aria-hidden="true" /> Peer thoughts <span className="count-pill" data-testid="comment-count" title={`${capacity - BASE_SLOTS > 0 ? `${BASE_SLOTS} standard + ${capacity - BASE_SLOTS} additional slot(s)` : `${BASE_SLOTS} standard slots`}`}>{published} / {capacity}</span></h3>
+            <p className="slots-line"><SlotDots published={published} capacity={capacity} className="big" /> <span className="hint">{capacity > BASE_SLOTS ? `${BASE_SLOTS} standard slots + ${capacity - BASE_SLOTS} additional` : `${BASE_SLOTS} standard slots`}</span></p>
             {loadErr && <p className="form-error">{loadErr}</p>}
             {MODE === 'live' && !me && <p className="hint">Sign in to read your classmates' comments.</p>}
-            {comments && comments.length === 0 && <p className="hint">No thoughts yet — be the first to share something kind and helpful!</p>}
-            <ul className="comment-list">{comments?.map((c) => <CommentCard key={c.id} c={c} mine={c.reviewerId === me?.studentId} onEdit={() => startForm(c)} />)}</ul>
-            {full && !mineHere && <p className="full-message" data-testid="full-message">This desk is full of thoughtful feedback! Thank you for helping your classmates.</p>}
-            {isSelf && <p className="hint self" data-testid="self-message">This is your own world — you can read your feedback here, but you can't review yourself.</p>}
-            {atLimit && !full && !isSelf && <p className="hint" data-testid="limit-message">{RULE_MESSAGES.reviewer_limit}</p>}
+            {comments && comments.length === 0 && <p className="hint">No thoughts yet — the first comment will appear here.</p>}
+            <ul className="comment-list">{comments?.map((c) => <CommentCard key={c.id} c={c} mine={c.reviewerId === me?.studentId} onEdit={status.open ? () => startForm(c) : undefined} />)}</ul>
+            {full && !mineHere && (
+              <div className="full-message" data-testid="full-message" role="note">
+                <strong>{FULL_TITLE}</strong>
+                <p>{FULL_TEXT}</p>
+              </div>
+            )}
+            {blocker && blocker !== 'project_full' && blocker !== 'already_reviewed' && (
+              <p id="block-msg" className={`hint block-${blocker}`} data-testid="block-message">{blocker === 'paused' ? 'Feedback is paused right now — you can still explore and read.' : blocker === 'self_review' ? "This is your own world — you can read your feedback here, but you can't review yourself." : RULE_MESSAGES[blocker]}</p>
+            )}
             {!mineHere && (
-              <button type="button" className="btn primary big" data-testid="leave-thoughts" disabled={full || isSelf || atLimit} onClick={() => startForm(null)}>
-                <Sparkles size={18} aria-hidden="true" /> Leave Your Thoughts
+              <button type="button" className="btn primary big" data-testid="leave-thoughts" disabled={!!blocker} onClick={() => startForm(null)} aria-describedby={blocker && blocker !== 'project_full' && blocker !== 'already_reviewed' ? 'block-msg' : undefined}>
+                <Sparkles size={18} aria-hidden="true" /> {FORM_TITLE}
               </button>
             )}
+            {pendingHere && !mineHere && <p className="hint quest-note">★ This world is on your Feedback Quest.</p>}
           </div>
         </div>
       )}
@@ -142,7 +188,7 @@ export function ProfileModal({ student, onClose }: { student: Student; onClose: 
       {step === 'signin' && (
         <div className="form-step">
           <button type="button" className="btn small ghost back" onClick={() => setStep('profile')}><ArrowLeft size={16} aria-hidden="true" /> Back</button>
-          <SignInPanel onDone={() => setStep('form')} />
+          <SignInPanel onDone={() => setStep('profile')} />
         </div>
       )}
 
@@ -152,26 +198,26 @@ export function ProfileModal({ student, onClose }: { student: Student; onClose: 
           <header className="form-head">
             <CreatureSvg spec={spec} size={72} animate={!reducedMotion} />
             <div>
-              <h2 id="profile-title">{editing ? 'Edit Your Thoughts' : 'Leave Your Thoughts'}</h2>
-              <p className="subtitle">Share something you loved and one idea that could make this world even better!</p>
+              <h2 id="profile-title">{editing ? 'Edit Your Thoughts' : FORM_TITLE}</h2>
+              <p className="subtitle">{FORM_SUBTITLE}</p>
               <p className="hint">For <strong>{student.fullName}</strong>'s world</p>
             </div>
           </header>
           {step === 'form' ? (
             <form className="feedback-form" onSubmit={toPreview} data-testid="feedback-form" noValidate>
               <div className="name-row">
-                <label className="field"><span>First name</span><input value={meStudent?.first ?? ''} readOnly aria-readonly="true" data-testid="fb-first" /></label>
-                <label className="field"><span>Last name</span><input value={meStudent?.last ?? ''} readOnly aria-readonly="true" data-testid="fb-last" /></label>
+                <label className="field"><span>First name</span><input value={me.firstName} readOnly aria-readonly="true" data-testid="fb-first" /></label>
+                <label className="field"><span>Last name</span><input value={me.lastName} readOnly aria-readonly="true" data-testid="fb-last" /></label>
                 <label className="field"><span>Pronouns <em>(optional)</em></span><input value={form.pronouns} maxLength={PRONOUNS_MAX} onChange={(e) => setForm({ ...form, pronouns: e.target.value })} placeholder="e.g. she/her, he/him, they/them" data-testid="fb-pronouns" aria-invalid={err?.field === 'pronouns'} /></label>
               </div>
-              <p className="hint id-note">{MODE === 'live' ? 'Your name comes from your access code, so classmates know the comment is really from you.' : 'Demo: your name comes from the classmate you chose. In the real classroom it comes from your access code.'}</p>
+              <p className="hint id-note">{MODE === 'live' ? 'Your name comes from your access code, so classmates know the comment is really from you.' : 'Demo: your name comes from the classmate you chose. In the real classroom it comes from your private access code.'}</p>
               <label className="field">
-                <span>What did you enjoy most about this website? Share a specific compliment!</span>
+                <span>{Q1}</span>
                 <textarea rows={4} value={form.enjoyed} maxLength={TEXT_MAX} onChange={(e) => setForm({ ...form, enjoyed: e.target.value })} data-testid="fb-q1" aria-invalid={err?.field === 'enjoyed'} placeholder="I loved how…" data-autofocus />
                 <small className="counter">{form.enjoyed.trim().length < TEXT_MIN ? `${TEXT_MIN - form.enjoyed.trim().length} more characters needed` : `${form.enjoyed.length} / ${TEXT_MAX}`}</small>
               </label>
               <label className="field">
-                <span>What is one improvement or new feature you would suggest?</span>
+                <span>{Q2}</span>
                 <textarea rows={4} value={form.suggestion} maxLength={TEXT_MAX} onChange={(e) => setForm({ ...form, suggestion: e.target.value })} data-testid="fb-q2" aria-invalid={err?.field === 'suggestion'} placeholder="Add…" />
                 <small className="counter">{form.suggestion.trim().length < TEXT_MIN ? `${TEXT_MIN - form.suggestion.trim().length} more characters needed` : `${form.suggestion.length} / ${TEXT_MAX}`}</small>
               </label>
@@ -196,13 +242,19 @@ export function ProfileModal({ student, onClose }: { student: Student; onClose: 
       {step === 'done' && (
         <div className="done-step" data-testid="done">
           <Celebrate />
-          <CreatureSvg spec={spec} size={160} animate={!reducedMotion} active />
-          <h2 id="profile-title">Thank you{me ? `, ${me.fullName.split(' ')[0]}` : ''}!</h2>
-          <p>Your thoughts are on {student.firstName}'s desk.</p>
-          {me && <p className="progress-line" data-testid="done-progress">Your reviews: {me.reviewsWritten} / {MAX_REVIEWS_PER_REVIEWER}</p>}
-          <div className="row">
+          <CreatureSvg spec={spec} size={140} animate={!reducedMotion} active />
+          <h2 id="profile-title">Thank you{me ? `, ${me.firstName}` : ''}!</h2>
+          <p>Your thoughts are on {student.firstName}'s desk:</p>
+          {sent && <blockquote className="comment preview-card" data-testid="done-text">{composeComment({ reviewerName: sent.reviewerName, pronouns: sent.pronouns, enjoyed: sent.enjoyed, suggestion: sent.suggestion })}</blockquote>}
+          {me && <p className="progress-line" data-testid="done-progress">Your Feedback Quest: {Math.min(me.completed, me.required)} / {me.required} completed</p>}
+          <p className="hint" data-testid="done-slots">{student.firstName}'s world now has {published} of {capacity} feedback slots filled.</p>
+          {nowDone && !editing && (
+            <div className="congrats" data-testid="done-congrats"><PartyPopper size={22} aria-hidden="true" /><div><strong>{CONGRATS_TITLE}</strong><p>{CONGRATS_TEXT}</p><p>{CONGRATS_MORE}</p></div></div>
+          )}
+          <div className="row center">
             <button type="button" className="btn" onClick={() => setStep('profile')}>See the comments</button>
-            <button type="button" className="btn primary" onClick={onClose}>Back to the classroom</button>
+            {!nowDone && <button type="button" className="btn primary" onClick={onFindNext} data-testid="done-find-next"><Compass size={16} aria-hidden="true" /> Find My Next Review</button>}
+            <button type="button" className={`btn${nowDone ? ' primary' : ''}`} onClick={onExploreAnother} data-testid="done-explore-another"><Shuffle size={16} aria-hidden="true" /> Explore Another World</button>
           </div>
         </div>
       )}

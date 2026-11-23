@@ -1,50 +1,96 @@
 /**
- * Re-import the classroom roster from the exam workbook.
+ * Re-import both classroom rosters from the exam workbook (macros are never run: the file is read as zipped XML).
  *
- *   npm run import-roster                       # reads "Take-Home Exam.xlsx" in the project folder
- *   npm run import-roster -- "path/to/file.xlsx"
- *   npm run import-roster -- --dry-run          # show what would change, write nothing
+ *   npm run import-roster                                  # reads "Take-Home Exam (final).xlsm" in the project folder
+ *   npm run import-roster -- "path/to/file.xlsm"
+ *   npm run import-roster -- --dry-run                     # show what would change, write nothing
  *
- * Safe to run again whenever new submissions arrive: returning students keep their id, seat and creature
- * (so comments stay attached); only URLs are refreshed. Writes src/data/roster.json.
+ * Safe to run again whenever links change: returning students keep their id, seat and creature (so comments stay
+ * attached); only links are refreshed. A changed link is marked "unchecked" until `npm run audit-links` verifies it.
+ *
+ * Writes:
+ *   src/data/roster.json            public roster (hidden students redacted — see src/data/visibility.json)
+ *   private/roster_full.json        full roster incl. hidden students (git-ignored; used by live-sql and re-imports)
+ *   docs/ROSTER_IMPORT_REPORT.md    what was read, from which cells, and what changed
  */
-import { readFileSync, writeFileSync, existsSync } from 'node:fs'
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import { basename, resolve } from 'node:path'
 import { readWorkbook } from '../shared/xlsx.ts'
-import { parseRosterSheet, mergeRoster, rosterCounts, countProblems, type Roster } from '../shared/roster.ts'
+import { parseWorkbook, mergeRoster, rosterCounts, countProblems, publicRoster, upgradeRoster, COURSES, COURSE_KEYS, type Roster } from '../shared/roster.ts'
 import { CREATURES } from '../shared/creatures.ts'
+import { CREATURES_1101 } from '../shared/creatures1101.ts'
 
 const args = process.argv.slice(2)
 const dry = args.includes('--dry-run')
-const file = resolve(args.find((a) => !a.startsWith('--')) ?? 'Take-Home Exam.xlsx')
+export const DEFAULT_WORKBOOK = 'Take-Home Exam (final).xlsm'
+const file = resolve(args.find((a) => !a.startsWith('--')) ?? DEFAULT_WORKBOOK)
 const OUT = resolve('src/data/roster.json')
+const FULL = resolve('private/roster_full.json')
+const VIS = resolve('src/data/visibility.json')
+const REPORT = resolve('docs/ROSTER_IMPORT_REPORT.md')
 
 if (!existsSync(file)) { console.error(`Workbook not found: ${file}`); process.exit(1) }
 const bytes = readFileSync(file)
-const parsed = parseRosterSheet(readWorkbook(new Uint8Array(bytes)))
-const prev: Roster | null = existsSync(OUT) ? JSON.parse(readFileSync(OUT, 'utf8')) : null
+const parsed = parseWorkbook(readWorkbook(new Uint8Array(bytes)))
+const prevRaw = existsSync(FULL) ? JSON.parse(readFileSync(FULL, 'utf8')) : existsSync(OUT) ? JSON.parse(readFileSync(OUT, 'utf8')) : null
+const prev: Roster | null = upgradeRoster(prevRaw)
+const hiddenIds = new Set<string>(existsSync(VIS) ? (JSON.parse(readFileSync(VIS, 'utf8')).hidden ?? []) : [])
 
-const { roster, report } = mergeRoster(prev, parsed.rows, CREATURES.map((c) => c.id), {
-  file: basename(file), sheet: parsed.sheet, importedAt: new Date().toISOString(),
+const merged = mergeRoster(prev, parsed.rows, { '1101': CREATURES_1101.map((c) => c.id), '2241': CREATURES.map((c) => c.id) }, {
+  file: basename(file), sheets: parsed.sheets, importedAt: new Date().toISOString(),
   sha256: createHash('sha256').update(bytes).digest('hex'),
 })
-
-const c = rosterCounts(roster)
-console.log(`Sheet: "${parsed.sheet}"  ·  ${c.total} students (Section 01: ${c.section01}, Section 02: ${c.section02})`)
-console.log(`URLs: ${c.valid} valid · ${c.missing} missing · ${c.invalid} invalid/local-only`)
-for (const s of roster.students.filter((s) => s.urlStatus === 'invalid')) console.log(`  invalid  ${s.id}  ${s.fullName}: ${s.urlNote}`)
-console.log(`Changes: ${report.added.length} added · ${report.kept.length} unchanged identity · ${report.urlChanged.length} URL updates · ${report.removed.length} no longer on sheet · ${report.restored.length} restored`)
-if (prev) for (const id of report.urlChanged) {
-  const a = [...prev.students, ...prev.removed].find((s) => s.id === id); const b = roster.students.find((s) => s.id === id)
-  console.log(`  url      ${id}  ${b?.fullName}: ${a?.url ?? '(none)'}  →  ${b?.url ?? '(none)'}`)
-}
-for (const id of report.removed) console.log(`  removed  ${id} (kept in roster.removed so comments remain linked)`)
-for (const w of parsed.warnings) console.log(`WARNING: ${w}`)
+const roster: Roster = { ...merged.roster, students: merged.roster.students.map((s) => ({ ...s, hidden: hiddenIds.has(s.id) || undefined })) }
+const { report } = merged
 const problems = countProblems(roster)
-for (const p of problems) console.log(`CHECK FAILED: ${p}`)
-if (problems.length === 0) console.log('Count check passed: 58 students, 28 + 30.')
 
-if (dry) console.log('Dry run — nothing written.')
-else { writeFileSync(OUT, JSON.stringify(roster, null, 2) + '\n'); console.log(`Wrote ${OUT}`) }
+const lines: string[] = []
+const say = (s = '') => { console.log(s); lines.push(s) }
+say(`Workbook: ${basename(file)}  ·  sheets: ${parsed.sheets.map((s) => `"${s}"`).join(', ')}`)
+for (const c of COURSE_KEYS) {
+  const k = rosterCounts(roster, c)
+  say(`${COURSES[c].code} ${COURSES[c].title}: ${k.total} students${c === '2241' ? ` (2241-01: ${k.section01}, 2241-02: ${k.section02})` : ''} · links: ${k.valid} valid, ${k.missing} missing, ${k.invalid} invalid`)
+}
+say(`Changes: ${report.added.length} added · ${report.kept.length} unchanged identity · ${report.urlChanged.length} link updates · ${report.removed.length} no longer listed · ${report.restored.length} restored`)
+for (const w of parsed.warnings) say(`WARNING: ${w}`)
+for (const p of problems) say(`CHECK FAILED: ${p}`)
+if (!problems.length) say('Count check passed: 86 students — MKTG 1101: 28; MKTG 2241: 58 (28 + 30).')
+
+const md: string[] = [
+  '# Roster import report', '',
+  `Generated by \`npm run import-roster\` on ${roster.source.importedAt.slice(0, 10)} from \`${basename(file)}\` (SHA-256 \`${roster.source.sha256?.slice(0, 16)}…\`).`,
+  'The workbook is read as data only (zipped XML); macros are never executed. The workbook itself is never committed.', '',
+  '## Counts', '',
+  '| Course | Students | Valid link | Missing | Invalid |', '|---|---:|---:|---:|---:|',
+  ...COURSE_KEYS.map((c) => { const k = rosterCounts(roster, c); return `| ${COURSES[c].code} ${COURSES[c].title} | ${k.total} | ${k.valid} | ${k.missing} | ${k.invalid} |` }),
+  `| **All** | **${roster.students.length}** | ${rosterCounts(roster).valid} | ${rosterCounts(roster).missing} | ${rosterCounts(roster).invalid} |`, '',
+  problems.length ? `**Count check FAILED:** ${problems.join(' ')}` : 'Count check passed (28 · 28 + 30 · 86).', '',
+  '## Column rules', '',
+  '* **MKTG 1101** (sheet "Website Link"): first name = B, last name = C, **interactive website = E only**. Column D (personal website) is never read into the roster.',
+  '* **MKTG 2241** (sheet "Your Own Interactive World"): section = B, first name = C, last name = D, link = E — except where column F ("Published Website Link") is filled in: then F is the published interactive site and E holds the GitHub repository, so F is used.',
+  '* A cell whose text is a web address is used as written (whitespace trimmed; `#fragments` and `?queries` kept). If the text is not a web address (e.g. a page title pasted as a rich link), the cell\'s hyperlink target is used and noted below.',
+  '* Nothing is guessed or repaired. Missing links stay missing.', '',
+  ...(parsed.warnings.length ? ['## Warnings', '', ...parsed.warnings.map((w) => `* ${w}`), ''] : []),
+  '## Students', '',
+  '| Id | Course | Student | Link used | Source cell | Status |', '|---|---|---|---|---|---|',
+  ...roster.students.map((s) => `| \`${s.id}\` | ${s.sectionCode} | ${s.hidden ? '*(hidden)*' : s.fullName} | ${s.hidden ? '—' : s.url ? `\`${s.url}\`` : '—'} | ${s.hidden ? '—' : (s.urlSource ?? '').replace(/\|/g, '\\|')} | ${s.urlStatus}${s.urlStatus === 'invalid' ? ` — ${s.urlNote}` : ''} |`), '',
+  '## Changes compared with the previous roster', '',
+  `* Added: ${report.added.length ? report.added.map((i) => `\`${i}\``).join(', ') : 'none'}`,
+  `* Link updates: ${report.urlChanged.length}`,
+  ...report.urlChanged.map((id) => {
+    const a = [...(prev?.students ?? []), ...(prev?.removed ?? [])].find((s) => s.id === id); const b = roster.students.find((s) => s.id === id)!
+    return `  * \`${id}\` ${b.hidden ? '(hidden)' : b.fullName}: ${a?.url ? `\`${a.url}\`` : '(none)'} → ${b.url ? `\`${b.url}\`` : '(none)'}`
+  }),
+  `* No longer listed: ${report.removed.length ? report.removed.join(', ') : 'none'}`,
+  `* Every returning student kept their id, seat and creature (${report.kept.length + report.restored.length} students).`, '',
+]
+
+if (dry) { console.log('Dry run — nothing written.') } else {
+  mkdirSync(resolve('private'), { recursive: true }); mkdirSync(resolve('docs'), { recursive: true })
+  writeFileSync(FULL, JSON.stringify(roster, null, 2) + '\n')
+  writeFileSync(OUT, JSON.stringify(publicRoster(roster), null, 2) + '\n')
+  writeFileSync(REPORT, md.join('\n'))
+  console.log(`Wrote ${OUT}\nWrote ${FULL} (private)\nWrote ${REPORT}`)
+}
 if (problems.length) process.exitCode = 2

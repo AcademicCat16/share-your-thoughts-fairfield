@@ -1,7 +1,8 @@
 /**
  * Publication safety check (run in CI before deploying):
  *  - the exam workbook, private/ folder and .env files are not tracked by git
- *  - no Supabase service-role key, access-code sheet or bcrypt hash appears in the repo or the built site
+ *  - no Supabase service-role key, access-code sheet, access code, code-hash upload or bcrypt hash appears in the
+ *    repo or the built site
  *  - the built site is in Demo mode unless VITE_FEEDBACK_MODE=live was set deliberately
  */
 import { execSync } from 'node:child_process'
@@ -11,7 +12,8 @@ import { join } from 'node:path'
 const problems = []
 const tracked = execSync('git ls-files', { encoding: 'utf8' }).split('\n').filter(Boolean)
 for (const f of tracked) {
-  if (/\.xlsx$/i.test(f)) problems.push(`spreadsheet tracked: ${f}`)
+  if (/\.(xlsx|xlsm|xls|xlsb)$/i.test(f)) problems.push(`spreadsheet tracked: ${f}`)
+  if (/roster_full\.json$|access_codes_/i.test(f)) problems.push(`private roster/code file tracked: ${f}`)
   if (/^private\//.test(f)) problems.push(`private file tracked: ${f}`)
   if (/(^|\/)\.env(\.|$)/.test(f) && !f.endsWith('.env.example')) problems.push(`env file tracked: ${f}`)
 }
@@ -25,7 +27,12 @@ for (const f of scan) {
   }
   if (/sb_secret_[A-Za-z0-9]/.test(t)) problems.push(`Supabase secret key in ${f}`)
   if (/\$2[aby]\$\d\d\$[./A-Za-z0-9]{53}/.test(t)) problems.push(`bcrypt hash in ${f}`)
-  if (!f.endsWith("generate-access-codes.ts") && /student_id,section,first,last,code/.test(t)) problems.push(`access-code sheet in ${f}`)
+  const generator = f.endsWith('generate-access-codes.ts')
+  if (!generator && /student_id,(course,)?section,first(_name)?,last(_name)?,code/.test(t)) problems.push(`access-code sheet in ${f}`)
+  // A real code (12 random characters); placeholders such as XXXX-XXXX-XXXX or AAAA-BBBB-CCCC are ignored.
+  const codeLike = [...t.matchAll(/\b([2-9A-HJKMNP-Z]{4})-([2-9A-HJKMNP-Z]{4})-([2-9A-HJKMNP-Z]{4})\b/g)].filter((m) => !m.slice(1).every((g) => /^(.)\1{3}$/.test(g)))
+  if (!generator && !f.endsWith('accessCode.ts') && codeLike.length) problems.push(`something shaped like an access code in ${f}: ${codeLike[0][0].slice(0, 4)}…`)
+  if (/insert into public\.access_codes[\s\S]{0,400}'[0-9a-f]{64}'/i.test(t)) problems.push(`access-code hashes in ${f}`)
 }
 const mode = process.env.VITE_FEEDBACK_MODE === 'live' ? 'live' : 'demo'
 if (existsSync('dist') && mode === 'demo') {

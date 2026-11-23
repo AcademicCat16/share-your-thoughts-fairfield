@@ -1,4 +1,4 @@
-# Test, build and publish The Feedback Classroom to GitHub Pages on every push to main.
+# Test, build and publish Fairfield Interactive Worlds to GitHub Pages on every push to main.
 # One-time repository setting: Settings → Pages → Build and deployment → Source: "GitHub Actions".
 # The site builds in DEMO mode unless the repository variable VITE_FEEDBACK_MODE is set to "live"
 # (plus VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY) — see supabase/SETUP.md before doing that.
@@ -31,24 +31,40 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - name: Unit tests (roster, creatures, comment wording, rules engine)
+      - name: Lint
+        run: npm run lint
+      - name: Unit tests (roster, allocation, creatures, comment wording, rules engine)
         run: npm test
       - name: Database tests (live-mode SQL on a local Postgres 17 with Supabase stand-ins)
         run: npm run test:db
-      - name: Type-check and build
+      - name: Type-check and build (Demo mode, for the Demo-mode browser tests)
         run: npm run build
+        env:
+          VITE_FEEDBACK_MODE: demo
       - name: Publication safety check
         run: npm run check:publish
-      - name: End-to-end tests (Chrome)
+        env:
+          VITE_FEEDBACK_MODE: demo
+      - name: End-to-end tests, Demo mode (Chrome)
         run: npm run test:e2e
         env:
           E2E_CHANNEL: chrome
+      - name: End-to-end tests, Demo mode (Microsoft Edge)
+        run: npm run test:e2e
+        env:
+          E2E_CHANNEL: msedge
+      - name: Live-mode browser tests (Chrome + Edge against the real SQL on a local stand-in)
+        run: npm run test:live
+      - name: Build the site to publish (Demo, or Live when the repository variables are set)
+        run: npm run build && npm run check:publish
       - name: Keep e2e screenshots
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: e2e-screenshots
-          path: tests/output/e2e/
+          path: |
+            tests/output/e2e*/
+            tests/output/live/
           if-no-files-found: ignore
       - name: Upload site
         if: github.event_name != 'pull_request'

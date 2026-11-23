@@ -8,7 +8,8 @@ import { Canvas, useFrame, useThree, type ThreeEvent } from '@react-three/fiber'
 import { OrbitControls, PerformanceMonitor } from '@react-three/drei'
 import * as THREE from 'three'
 import type { OrbitControls as OrbitImpl } from 'three-stdlib'
-import type { Student } from '../../shared/roster.ts'
+import { isReviewable, type CourseKey, type Student } from '../../shared/roster.ts'
+import type { PublicStatus } from '../lib/backend.ts'
 import { CREATURE_BY_ID } from '../lib/app.tsx'
 import { seats3d, type Seat } from '../lib/layout.ts'
 import { Creature3D, mat } from './Creature3D.tsx'
@@ -17,8 +18,9 @@ import { namePlateTexture, softShadowTexture, bannerTexture } from './textures.t
 
 export type CameraCmd = { kind: 'reset' | 'focus' | 'zoomIn' | 'zoomOut' | 'rotL' | 'rotR'; id?: string; n: number }
 export interface Classroom3DProps {
+  course: CourseKey
   students: Student[]
-  counts: Record<string, number>
+  status: PublicStatus
   selected: string | null
   highlight: Set<string> | null
   animate: boolean
@@ -30,7 +32,6 @@ export interface Classroom3DProps {
 
 const HOME = { pos: new THREE.Vector3(0, 9.2, -12.6), target: new THREE.Vector3(0, 0.4, 5.4) }
 const DESK_COLORS = ['#ffd6e0', '#d8f3dc', '#dbe7ff', '#fff1c1', '#e9d8fd', '#ffe1c6', '#c9f2ef']
-const MAX_PER_PROJECT = 4
 
 const g = {
   box: new THREE.BoxGeometry(1, 1, 1),
@@ -76,8 +77,9 @@ function Desks({ seats, highlight }: { seats: Seat[]; highlight: Set<string> | n
 
 function NamePlate({ seat, dim }: { seat: Seat; dim: boolean }) {
   const s = seat.student
-  const tint = s.section === '01' ? '#ffadc6' : '#9cc9ff'
-  const tex = useMemo(() => namePlateTexture(s.firstName, s.lastName, s.sectionCode, tint, s.urlStatus !== 'valid'), [s.firstName, s.lastName, s.sectionCode, tint, s.urlStatus])
+  const tint = s.section === '01' ? '#ffadc6' : s.section === '02' ? '#9cc9ff' : '#ffc98a'
+  const empty = !isReviewable(s)
+  const tex = useMemo(() => namePlateTexture(s.hidden ? 'Reserved' : s.firstName, s.hidden ? 'seat' : s.lastName, s.sectionCode, tint, empty), [s.firstName, s.lastName, s.sectionCode, tint, empty, s.hidden])
   const face = useMemo(() => new THREE.MeshBasicMaterial({ map: tex, transparent: true }), [tex])
   useEffect(() => () => { tex.dispose(); face.dispose() }, [tex, face])
   face.opacity = dim ? 0.35 : 1
@@ -104,10 +106,10 @@ function Ring({ seat, color }: { seat: Seat; color: string }) {
   return <mesh ref={r} geometry={g.ring} material={m} position={[seat.x, 0.03, seat.z + 0.35]} rotation={[-Math.PI / 2, 0, 0]} />
 }
 
-function SectionSigns() {
-  const make = (t: string, c: string, b: string) => new THREE.MeshBasicMaterial({ map: bannerTexture([{ text: t, size: 120, color: c, weight: 700 }], 900, 220, '#ffffff', b), transparent: true })
-  const a = useMemo(() => make('MKTG 2241-01', '#c2577a', '#ffadc6'), [])
-  const b = useMemo(() => make('MKTG 2241-02', '#3d6fb0', '#9cc9ff'), [])
+function SectionSigns({ course }: { course: CourseKey }) {
+  const make = (t: string, c: string, b: string, size = 120) => new THREE.MeshBasicMaterial({ map: bannerTexture([{ text: t, size, color: c, weight: 700 }], 900, 220, '#ffffff', b), transparent: true })
+  const a = useMemo(() => (course === '1101' ? make('MKTG 1101', '#b0612a', '#ffc98a') : make('MKTG 2241-01', '#c2577a', '#ffadc6')), [course])
+  const b = useMemo(() => (course === '1101' ? make('Principles of Marketing', '#b0612a', '#ffc98a', 92) : make('MKTG 2241-02', '#3d6fb0', '#9cc9ff')), [course])
   return (
     <group>
       <mesh geometry={g.plane} material={a} position={[7, 0.03, -2.1]} rotation={[-Math.PI / 2, 0, Math.PI]} scale={[5.2, 1.27, 1]} />
@@ -163,7 +165,7 @@ function TestHooks({ seats, hovered }: { seats: Seat[]; hovered: string | null }
     w.__fic3d = {
       ready: true,
       seats: seats.length,
-      creatures: seats.filter((s) => s.student.urlStatus === 'valid').length,
+      creatures: seats.filter((s) => isReviewable(s.student)).length,
       hovered,
       camera: () => camera.position.toArray().map((v) => +v.toFixed(3)),
       target: () => controls?.target.toArray().map((v) => +v.toFixed(3)),
@@ -215,16 +217,17 @@ export default function Classroom3D(p: Classroom3DProps) {
       <directionalLight position={[14, 14, 6]} intensity={1.4} color="#fff1d6" />
       <directionalLight position={[-12, 8, -10]} intensity={0.55} color="#e3f0ff" />
       <Room />
-      <SectionSigns />
+      <SectionSigns course={p.course} />
       <Desks seats={seats} highlight={p.highlight} />
       {seats.map((s, i) => {
         const dim = !!p.highlight && !p.highlight.has(s.student.id)
         const spec = CREATURE_BY_ID.get(s.student.creatureId)
-        const full = (p.counts[s.student.id] ?? 0) >= MAX_PER_PROJECT
+        const st = p.status.projects[s.student.id]
+        const full = !!st && st.published >= st.capacity
         return (
           <group key={s.student.id}>
             <NamePlate seat={s} dim={dim} />
-            {s.student.urlStatus === 'valid' && spec
+            {isReviewable(s.student) && spec
               ? <group position={[s.x, 1.06, s.z + 0.74]} scale={1.2} visible={!dim || hovered === s.student.id}><Creature3D spec={spec} hovered={hovered === s.student.id} selected={p.selected === s.student.id} dimmed={dim} animate={p.animate} seed={i * 1.37} /></group>
               : <EmptyNote seat={s} />}
             {full && <mesh geometry={g.box} material={mat('#ffd166', { emissive: true })} position={[s.x - 0.55, 0.9, s.z + 0.1]} scale={[0.16, 0.16, 0.16]} rotation={[0.6, 0.6, 0]} />}

@@ -1,13 +1,632 @@
 {
   "schema": "fairfield-roster",
-  "version": 1,
+  "version": 2,
   "source": {
-    "file": "Take-Home Exam.xlsx",
-    "sheet": "Your Own Interactive World",
-    "importedAt": "2026-11-19T23:33:59.186Z",
-    "sha256": "66ae6a5cf72a895338bb03c2e3d4c076b98335b18799dbab78d0a26199dc263a"
+    "file": "Take-Home Exam (final).xlsm",
+    "sheets": [
+      "Website Link",
+      "Your Own Interactive World"
+    ],
+    "importedAt": "2026-11-23T06:18:45.825Z",
+    "sha256": "f314767b83dd20b7db977d57fdd37ca938f3fdc61ab712e3b3e6fc3e77792cba"
   },
   "students": [
+    {
+      "id": "pm-01",
+      "course": "1101",
+      "courseCode": "MKTG 1101",
+      "section": "pm",
+      "sectionCode": "MKTG 1101",
+      "position": 1,
+      "firstName": "Adam",
+      "lastName": "Bonanno",
+      "fullName": "Adam Bonanno",
+      "url": "https://adambonanno-hash.github.io/Creative-website/#",
+      "urlStatus": "valid",
+      "urlNote": "Public web address.",
+      "urlSource": "Website Link!E2",
+      "creatureId": "c61",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:19:58.093Z",
+        "resolvedUrl": "https://adambonanno-hash.github.io/Creative-website/#",
+        "note": "Renders (3328 characters of text, 1 images/canvases)."
+      }
+    },
+    {
+      "id": "pm-02",
+      "course": "1101",
+      "courseCode": "MKTG 1101",
+      "section": "pm",
+      "sectionCode": "MKTG 1101",
+      "position": 2,
+      "firstName": "Andre",
+      "lastName": "Cantave",
+      "fullName": "Andre Cantave",
+      "url": "https://acant2006-cmd.github.io/Creative-Website-/#sample-day",
+      "urlStatus": "valid",
+      "urlNote": "Public web address.",
+      "urlSource": "Website Link!E3",
+      "creatureId": "c81",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:19:59.939Z",
+        "resolvedUrl": "https://acant2006-cmd.github.io/Creative-Website-/#sample-day",
+        "note": "Renders (2934 characters of text, 17 images/canvases)."
+      }
+    },
+    {
+      "id": "pm-03",
+      "course": "1101",
+      "courseCode": "MKTG 1101",
+      "section": "pm",
+      "sectionCode": "MKTG 1101",
+      "position": 3,
+      "firstName": "Andrew",
+      "lastName": "Valentino",
+      "fullName": "Andrew Valentino",
+      "url": "https://andrewvalentino-creator.github.io/Android-Caf-Mug/",
+      "urlStatus": "valid",
+      "urlNote": "Public web address.",
+      "urlSource": "Website Link!E4",
+      "creatureId": "c76",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:19:59.099Z",
+        "resolvedUrl": "https://andrewvalentino-creator.github.io/Android-Caf-Mug/",
+        "note": "Renders (2483 characters of text, 3 images/canvases)."
+      }
+    },
+    {
+      "id": "pm-04",
+      "course": "1101",
+      "courseCode": "MKTG 1101",
+      "section": "pm",
+      "sectionCode": "MKTG 1101",
+      "position": 4,
+      "firstName": "Anthony",
+      "lastName": "Didato",
+      "fullName": "Anthony Didato",
+      "url": "https://anthonydidato.github.io/Creative-Website/",
+      "urlStatus": "valid",
+      "urlNote": "Public web address.",
+      "urlSource": "Website Link!E5",
+      "creatureId": "c64",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:19:58.098Z",
+        "resolvedUrl": "https://anthonydidato.github.io/Creative-Website/",
+        "note": "Renders (2869 characters of text, 0 images/canvases)."
+      }
+    },
+    {
+      "id": "pm-05",
+      "course": "1101",
+      "courseCode": "MKTG 1101",
+      "section": "pm",
+      "sectionCode": "MKTG 1101",
+      "position": 5,
+      "firstName": "Brendan",
+      "lastName": "Murphy",
+      "fullName": "Brendan Murphy",
+      "url": "https://bmurph31.github.io/Creative-Website/",
+      "urlStatus": "valid",
+      "urlNote": "Public web address.",
+      "urlSource": "Website Link!E6",
+      "creatureId": "c68",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:20:01.899Z",
+        "resolvedUrl": "https://bmurph31.github.io/Creative-Website/",
+        "note": "Renders (4256 characters of text, 6 images/canvases)."
+      }
+    },
+    {
+      "id": "pm-06",
+      "course": "1101",
+      "courseCode": "MKTG 1101",
+      "section": "pm",
+      "sectionCode": "MKTG 1101",
+      "position": 6,
+      "firstName": "Dalton",
+      "lastName": "Ochab",
+      "fullName": "Dalton Ochab",
+      "url": "https://daltonochab.github.io/CreativeWebsite/#demo",
+      "urlStatus": "valid",
+      "urlNote": "Public web address.",
+      "urlSource": "Website Link!E7",
+      "creatureId": "c72",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:20:02.785Z",
+        "resolvedUrl": "https://daltonochab.github.io/CreativeWebsite/#demo",
+        "note": "Renders (4280 characters of text, 2 images/canvases)."
+      }
+    },
+    {
+      "id": "pm-07",
+      "course": "1101",
+      "courseCode": "MKTG 1101",
+      "section": "pm",
+      "sectionCode": "MKTG 1101",
+      "position": 7,
+      "firstName": "Derek",
+      "lastName": "Crowe",
+      "fullName": "Derek Crowe",
+      "url": "https://derekcrowe-ops.github.io/Creative-Website/",
+      "urlStatus": "valid",
+      "urlNote": "Public web address.",
+      "urlSource": "Website Link!E8",
+      "creatureId": "c86",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:20:03.036Z",
+        "resolvedUrl": "https://derekcrowe-ops.github.io/Creative-Website/",
+        "note": "Renders (3110 characters of text, 25 images/canvases)."
+      }
+    },
+    {
+      "id": "pm-08",
+      "course": "1101",
+      "courseCode": "MKTG 1101",
+      "section": "pm",
+      "sectionCode": "MKTG 1101",
+      "position": 8,
+      "firstName": "Ella",
+      "lastName": "Alberta",
+      "fullName": "Ella Alberta",
+      "url": "https://ellaalberta.github.io/Creative-website/",
+      "urlStatus": "valid",
+      "urlNote": "Public web address.",
+      "urlSource": "Website Link!E9",
+      "creatureId": "c80",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:20:04.132Z",
+        "resolvedUrl": "https://ellaalberta.github.io/Creative-website/",
+        "note": "Renders (3170 characters of text, 4 images/canvases)."
+      }
+    },
+    {
+      "id": "pm-09",
+      "course": "1101",
+      "courseCode": "MKTG 1101",
+      "section": "pm",
+      "sectionCode": "MKTG 1101",
+      "position": 9,
+      "firstName": "Emma",
+      "lastName": "Bausch",
+      "fullName": "Emma Bausch",
+      "url": "https://emma0424.github.io/creative-website/",
+      "urlStatus": "valid",
+      "urlNote": "Public web address.",
+      "urlSource": "Website Link!E10",
+      "creatureId": "c66",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:20:05.631Z",
+        "resolvedUrl": "https://emma0424.github.io/creative-website/",
+        "note": "Renders (2630 characters of text, 3 images/canvases)."
+      }
+    },
+    {
+      "id": "pm-10",
+      "course": "1101",
+      "courseCode": "MKTG 1101",
+      "section": "pm",
+      "sectionCode": "MKTG 1101",
+      "position": 10,
+      "firstName": "Eva",
+      "lastName": "Plasterer",
+      "fullName": "Eva Plasterer",
+      "url": "https://eplasterer.github.io/creative-website/?v=45a2ecb#top",
+      "urlStatus": "valid",
+      "urlNote": "Public web address.",
+      "urlSource": "Website Link!E11",
+      "creatureId": "c60",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:20:07.417Z",
+        "resolvedUrl": "https://eplasterer.github.io/creative-website/?v=45a2ecb#top",
+        "note": "Renders (3610 characters of text, 2 images/canvases)."
+      }
+    },
+    {
+      "id": "pm-11",
+      "course": "1101",
+      "courseCode": "MKTG 1101",
+      "section": "pm",
+      "sectionCode": "MKTG 1101",
+      "position": 11,
+      "firstName": "Lauren",
+      "lastName": "Smushko",
+      "fullName": "Lauren Smushko",
+      "url": "https://laurensmushko.github.io/Creative-website1/",
+      "urlStatus": "valid",
+      "urlNote": "Public web address.",
+      "urlSource": "Website Link!E12",
+      "creatureId": "c83",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:20:06.956Z",
+        "resolvedUrl": "https://laurensmushko.github.io/Creative-website1/",
+        "note": "Renders (2290 characters of text, 1 images/canvases)."
+      }
+    },
+    {
+      "id": "pm-12",
+      "course": "1101",
+      "courseCode": "MKTG 1101",
+      "section": "pm",
+      "sectionCode": "MKTG 1101",
+      "position": 12,
+      "firstName": "Liam",
+      "lastName": "Smith",
+      "fullName": "Liam Smith",
+      "url": "https://liamsmith199.github.io/Creative-website/",
+      "urlStatus": "valid",
+      "urlNote": "Public web address.",
+      "urlSource": "Website Link!E13",
+      "creatureId": "c73",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:20:07.854Z",
+        "resolvedUrl": "https://liamsmith199.github.io/Creative-website/",
+        "note": "Renders (3998 characters of text, 26 images/canvases)."
+      }
+    },
+    {
+      "id": "pm-13",
+      "course": "1101",
+      "courseCode": "MKTG 1101",
+      "section": "pm",
+      "sectionCode": "MKTG 1101",
+      "position": 13,
+      "firstName": "Luke",
+      "lastName": "Ryan",
+      "fullName": "Luke Ryan",
+      "url": "https://lukeryan-maker.github.io/Creative-Website/",
+      "urlStatus": "valid",
+      "urlNote": "Public web address.",
+      "urlSource": "Website Link!E14",
+      "creatureId": "c62",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:20:10.194Z",
+        "resolvedUrl": "https://lukeryan-maker.github.io/Creative-Website/",
+        "note": "Renders (2922 characters of text, 1 images/canvases)."
+      }
+    },
+    {
+      "id": "pm-14",
+      "course": "1101",
+      "courseCode": "MKTG 1101",
+      "section": "pm",
+      "sectionCode": "MKTG 1101",
+      "position": 14,
+      "firstName": "Marley",
+      "lastName": "Grandizio",
+      "fullName": "Marley Grandizio",
+      "url": "https://marleygrandizio.github.io/concert-streaming-site/",
+      "urlStatus": "valid",
+      "urlNote": "Public web address.",
+      "urlSource": "Website Link!E15",
+      "creatureId": "c79",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:20:11.479Z",
+        "resolvedUrl": "https://marleygrandizio.github.io/concert-streaming-site/",
+        "note": "Renders (1981 characters of text, 0 images/canvases)."
+      }
+    },
+    {
+      "id": "pm-15",
+      "course": "1101",
+      "courseCode": "MKTG 1101",
+      "section": "pm",
+      "sectionCode": "MKTG 1101",
+      "position": 15,
+      "firstName": "Mason",
+      "lastName": "Andrews",
+      "fullName": "Mason Andrews",
+      "url": "https://masonandrews-stack.github.io/creative-website/",
+      "urlStatus": "valid",
+      "urlNote": "Public web address.",
+      "urlSource": "Website Link!E16 (link target; the cell showed \"BackSupport — Better Support. Same Chair.\")",
+      "creatureId": "c67",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:20:11.187Z",
+        "resolvedUrl": "https://masonandrews-stack.github.io/creative-website/",
+        "note": "Renders (590 characters of text, 1 images/canvases)."
+      }
+    },
+    {
+      "id": "pm-16",
+      "course": "1101",
+      "courseCode": "MKTG 1101",
+      "section": "pm",
+      "sectionCode": "MKTG 1101",
+      "position": 16,
+      "firstName": "Mason",
+      "lastName": "Chowaniec",
+      "fullName": "Mason Chowaniec",
+      "url": "https://masonchow4.github.io/Creative_Website/",
+      "urlStatus": "valid",
+      "urlNote": "Public web address.",
+      "urlSource": "Website Link!E17",
+      "creatureId": "c59",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:20:11.745Z",
+        "resolvedUrl": "https://masonchow4.github.io/Creative_Website/",
+        "note": "Renders (3982 characters of text, 1 images/canvases)."
+      }
+    },
+    {
+      "id": "pm-17",
+      "course": "1101",
+      "courseCode": "MKTG 1101",
+      "section": "pm",
+      "sectionCode": "MKTG 1101",
+      "position": 17,
+      "firstName": "Max",
+      "lastName": "Van vranken",
+      "fullName": "Max Van vranken",
+      "url": "https://maxvv1234.github.io/linguapods/",
+      "urlStatus": "valid",
+      "urlNote": "Public web address.",
+      "urlSource": "Website Link!E18",
+      "creatureId": "c85",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:20:14.777Z",
+        "resolvedUrl": "https://maxvv1234.github.io/linguapods/",
+        "note": "Renders (5537 characters of text, 1 images/canvases)."
+      }
+    },
+    {
+      "id": "pm-18",
+      "course": "1101",
+      "courseCode": "MKTG 1101",
+      "section": "pm",
+      "sectionCode": "MKTG 1101",
+      "position": 18,
+      "firstName": "Olivia",
+      "lastName": "Osinovsky",
+      "fullName": "Olivia Osinovsky",
+      "url": "https://oliviaosinovsky.github.io/valmora/",
+      "urlStatus": "valid",
+      "urlNote": "Public web address.",
+      "urlSource": "Website Link!E19",
+      "creatureId": "c78",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:20:15.575Z",
+        "resolvedUrl": "https://oliviaosinovsky.github.io/valmora/",
+        "note": "Renders (7141 characters of text, 1 images/canvases)."
+      }
+    },
+    {
+      "id": "pm-19",
+      "course": "1101",
+      "courseCode": "MKTG 1101",
+      "section": "pm",
+      "sectionCode": "MKTG 1101",
+      "position": 19,
+      "firstName": "Owen",
+      "lastName": "Packard",
+      "fullName": "Owen Packard",
+      "url": "https://opack24.github.io/Creative-Website/?venture=foldmate",
+      "urlStatus": "valid",
+      "urlNote": "Public web address.",
+      "urlSource": "Website Link!E20",
+      "creatureId": "c74",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:20:15.304Z",
+        "resolvedUrl": "https://opack24.github.io/Creative-Website/?venture=foldmate",
+        "note": "Renders (4454 characters of text, 2 images/canvases)."
+      }
+    },
+    {
+      "id": "pm-20",
+      "course": "1101",
+      "courseCode": "MKTG 1101",
+      "section": "pm",
+      "sectionCode": "MKTG 1101",
+      "position": 20,
+      "firstName": "Owen",
+      "lastName": "Sullivan",
+      "fullName": "Owen Sullivan",
+      "url": "https://boof-brand.netlify.app/",
+      "urlStatus": "valid",
+      "urlNote": "Public web address.",
+      "urlSource": "Website Link!E21",
+      "creatureId": "c65",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:20:17.194Z",
+        "resolvedUrl": "https://boof-brand.netlify.app/",
+        "note": "Renders (77 characters of text, 13 images/canvases)."
+      }
+    },
+    {
+      "id": "pm-21",
+      "course": "1101",
+      "courseCode": "MKTG 1101",
+      "section": "pm",
+      "sectionCode": "MKTG 1101",
+      "position": 21,
+      "firstName": "Paige",
+      "lastName": "McManus",
+      "fullName": "Paige McManus",
+      "url": "https://paigemcmanus-byte.github.io/Creative-Website-/#idea",
+      "urlStatus": "valid",
+      "urlNote": "Public web address.",
+      "urlSource": "Website Link!E22",
+      "creatureId": "c84",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:20:18.822Z",
+        "resolvedUrl": "https://paigemcmanus-byte.github.io/Creative-Website-/#idea",
+        "note": "Renders (3802 characters of text, 3 images/canvases)."
+      }
+    },
+    {
+      "id": "pm-22",
+      "course": "1101",
+      "courseCode": "MKTG 1101",
+      "section": "pm",
+      "sectionCode": "MKTG 1101",
+      "position": 22,
+      "firstName": "Quinn",
+      "lastName": "MacNeil",
+      "fullName": "Quinn MacNeil",
+      "url": "https://quinnmacneil25.github.io/Creative-Website/",
+      "urlStatus": "valid",
+      "urlNote": "Public web address.",
+      "urlSource": "Website Link!E23",
+      "creatureId": "c75",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:20:18.871Z",
+        "resolvedUrl": "https://quinnmacneil25.github.io/Creative-Website/",
+        "note": "Renders (5542 characters of text, 2 images/canvases)."
+      }
+    },
+    {
+      "id": "pm-23",
+      "course": "1101",
+      "courseCode": "MKTG 1101",
+      "section": "pm",
+      "sectionCode": "MKTG 1101",
+      "position": 23,
+      "firstName": "Ryan",
+      "lastName": "Cappello",
+      "fullName": "Ryan Cappello",
+      "url": "https://ryancappello.github.io/creative-website/smart-sort/",
+      "urlStatus": "valid",
+      "urlNote": "Public web address.",
+      "urlSource": "Website Link!E24",
+      "creatureId": "c70",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:20:19.361Z",
+        "resolvedUrl": "https://ryancappello.github.io/creative-website/smart-sort/",
+        "note": "Renders (3747 characters of text, 1 images/canvases)."
+      }
+    },
+    {
+      "id": "pm-24",
+      "course": "1101",
+      "courseCode": "MKTG 1101",
+      "section": "pm",
+      "sectionCode": "MKTG 1101",
+      "position": 24,
+      "firstName": "Ryan",
+      "lastName": "Carella",
+      "fullName": "Ryan Carella",
+      "url": "https://ryancarella.github.io/Creative-Website/",
+      "urlStatus": "valid",
+      "urlNote": "Public web address.",
+      "urlSource": "Website Link!E25",
+      "creatureId": "c69",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:20:21.102Z",
+        "resolvedUrl": "https://ryancarella.github.io/Creative-Website/",
+        "note": "Renders (2984 characters of text, 1 images/canvases)."
+      }
+    },
+    {
+      "id": "pm-25",
+      "course": "1101",
+      "courseCode": "MKTG 1101",
+      "section": "pm",
+      "sectionCode": "MKTG 1101",
+      "position": 25,
+      "firstName": "Ryan",
+      "lastName": "Zannoni",
+      "fullName": "Ryan Zannoni",
+      "url": "https://ryanzannoni-creator.github.io/Creative-Website-2/",
+      "urlStatus": "valid",
+      "urlNote": "Public web address.",
+      "urlSource": "Website Link!E26",
+      "creatureId": "c63",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:20:22.918Z",
+        "resolvedUrl": "https://ryanzannoni-creator.github.io/Creative-Website-2/",
+        "note": "Renders (3274 characters of text, 1 images/canvases)."
+      }
+    },
+    {
+      "id": "pm-26",
+      "course": "1101",
+      "courseCode": "MKTG 1101",
+      "section": "pm",
+      "sectionCode": "MKTG 1101",
+      "position": 26,
+      "firstName": "Sarah",
+      "lastName": "Bielski",
+      "fullName": "Sarah Bielski",
+      "url": "https://sarahbielski.github.io/Creative-Website/",
+      "urlStatus": "valid",
+      "urlNote": "Public web address.",
+      "urlSource": "Website Link!E27",
+      "creatureId": "c71",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:20:23.415Z",
+        "resolvedUrl": "https://sarahbielski.github.io/Creative-Website/",
+        "note": "Renders (3066 characters of text, 2 images/canvases)."
+      }
+    },
+    {
+      "id": "pm-27",
+      "course": "1101",
+      "courseCode": "MKTG 1101",
+      "section": "pm",
+      "sectionCode": "MKTG 1101",
+      "position": 27,
+      "firstName": "Tomas",
+      "lastName": "Noriega",
+      "fullName": "Tomas Noriega",
+      "url": "https://tomas-noriega.github.io/creative-website/",
+      "urlStatus": "valid",
+      "urlNote": "Public web address.",
+      "urlSource": "Website Link!E28",
+      "creatureId": "c82",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:20:25.695Z",
+        "resolvedUrl": "https://tomas-noriega.github.io/creative-website/",
+        "note": "Renders (3086 characters of text, 15 images/canvases)."
+      }
+    },
+    {
+      "id": "pm-28",
+      "course": "1101",
+      "courseCode": "MKTG 1101",
+      "section": "pm",
+      "sectionCode": "MKTG 1101",
+      "position": 28,
+      "firstName": "Tyler",
+      "lastName": "Frampton",
+      "fullName": "Tyler Frampton",
+      "url": "https://tylerframpton07.github.io/Creative-Website/",
+      "urlStatus": "valid",
+      "urlNote": "Public web address.",
+      "urlSource": "Website Link!E29",
+      "creatureId": "c77",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:20:24.697Z",
+        "resolvedUrl": "https://tylerframpton07.github.io/Creative-Website/",
+        "note": "Renders (3359 characters of text, 3 images/canvases)."
+      }
+    },
     {
       "id": "s01-01",
       "section": "01",
@@ -19,7 +638,13 @@
       "url": null,
       "urlStatus": "missing",
       "urlNote": "No project link submitted yet.",
-      "creatureId": "c52"
+      "creatureId": "c52",
+      "course": "2241",
+      "courseCode": "MKTG 2241",
+      "link": {
+        "status": "unchecked"
+      },
+      "urlSource": "Your Own Interactive World!E2"
     },
     {
       "id": "s01-02",
@@ -32,7 +657,16 @@
       "url": "https://antoniarolo.github.io/christmas-eve-at-pine-cottage/",
       "urlStatus": "valid",
       "urlNote": "Public web address.",
-      "creatureId": "c33"
+      "creatureId": "c33",
+      "course": "2241",
+      "courseCode": "MKTG 2241",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:20:26.836Z",
+        "resolvedUrl": "https://antoniarolo.github.io/christmas-eve-at-pine-cottage/",
+        "note": "Renders (452 characters of text, 1 images/canvases)."
+      },
+      "urlSource": "Your Own Interactive World!E3"
     },
     {
       "id": "s01-03",
@@ -42,10 +676,19 @@
       "firstName": "Ava",
       "lastName": "Sobolak",
       "fullName": "Ava Sobolak",
-      "url": null,
-      "urlStatus": "missing",
-      "urlNote": "No project link submitted yet.",
-      "creatureId": "c03"
+      "url": "https://avasobolak-svg.github.io/Lacrosse-Game/",
+      "urlStatus": "valid",
+      "urlNote": "Public web address.",
+      "creatureId": "c03",
+      "course": "2241",
+      "courseCode": "MKTG 2241",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:20:27.119Z",
+        "resolvedUrl": "https://avasobolak-svg.github.io/Lacrosse-Game/",
+        "note": "Renders (788 characters of text, 1 images/canvases)."
+      },
+      "urlSource": "Your Own Interactive World!E4"
     },
     {
       "id": "s01-04",
@@ -58,7 +701,16 @@
       "url": "https://catherinemack05.github.io/WISHD/",
       "urlStatus": "valid",
       "urlNote": "Public web address.",
-      "creatureId": "c02"
+      "creatureId": "c02",
+      "course": "2241",
+      "courseCode": "MKTG 2241",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:20:28.470Z",
+        "resolvedUrl": "https://catherinemack05.github.io/WISHD/",
+        "note": "Renders (6670 characters of text, 53 images/canvases)."
+      },
+      "urlSource": "Your Own Interactive World!E5"
     },
     {
       "id": "s01-05",
@@ -71,7 +723,16 @@
       "url": "https://catherinepetrie.github.io/cupcake-decorating-simulator",
       "urlStatus": "valid",
       "urlNote": "Public web address.",
-      "creatureId": "c42"
+      "creatureId": "c42",
+      "course": "2241",
+      "courseCode": "MKTG 2241",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:20:29.467Z",
+        "resolvedUrl": "https://catherinepetrie.github.io/cupcake-decorating-simulator/",
+        "note": "Renders (862 characters of text, 1 images/canvases)."
+      },
+      "urlSource": "Your Own Interactive World!E6"
     },
     {
       "id": "s01-06",
@@ -81,10 +742,19 @@
       "firstName": "Clancy",
       "lastName": "Molloy",
       "fullName": "Clancy Molloy",
-      "url": null,
-      "urlStatus": "missing",
-      "urlNote": "No project link submitted yet.",
-      "creatureId": "c53"
+      "url": "https://clancymolloy.github.io/circus/",
+      "urlStatus": "valid",
+      "urlNote": "Public web address.",
+      "creatureId": "c53",
+      "course": "2241",
+      "courseCode": "MKTG 2241",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:20:30.188Z",
+        "resolvedUrl": "https://clancymolloy.github.io/circus/",
+        "note": "Renders (170 characters of text, 1 images/canvases)."
+      },
+      "urlSource": "Your Own Interactive World!E7"
     },
     {
       "id": "s01-07",
@@ -97,7 +767,16 @@
       "url": "https://danielsherry28.github.io/Color-Palette-Generator/",
       "urlStatus": "valid",
       "urlNote": "Public web address.",
-      "creatureId": "c35"
+      "creatureId": "c35",
+      "course": "2241",
+      "courseCode": "MKTG 2241",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:20:30.802Z",
+        "resolvedUrl": "https://danielsherry28.github.io/Color-Palette-Generator/",
+        "note": "Renders (530 characters of text, 0 images/canvases)."
+      },
+      "urlSource": "Your Own Interactive World!E8"
     },
     {
       "id": "s01-08",
@@ -110,7 +789,16 @@
       "url": "https://deirdreredington.github.io/Flower-Bouquet/",
       "urlStatus": "valid",
       "urlNote": "Public web address.",
-      "creatureId": "c13"
+      "creatureId": "c13",
+      "course": "2241",
+      "courseCode": "MKTG 2241",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:20:32.284Z",
+        "resolvedUrl": "https://deirdreredington.github.io/Flower-Bouquet/",
+        "note": "Renders (2161 characters of text, 28 images/canvases)."
+      },
+      "urlSource": "Your Own Interactive World!E9"
     },
     {
       "id": "s01-09",
@@ -120,10 +808,19 @@
       "firstName": "Elina",
       "lastName": "Shah",
       "fullName": "Elina Shah",
-      "url": null,
-      "urlStatus": "missing",
-      "urlNote": "No project link submitted yet.",
-      "creatureId": "c55"
+      "url": "https://elinashah-max.github.io/shoppinglist/",
+      "urlStatus": "valid",
+      "urlNote": "Public web address.",
+      "creatureId": "c55",
+      "course": "2241",
+      "courseCode": "MKTG 2241",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:20:33.023Z",
+        "resolvedUrl": "https://elinashah-max.github.io/shoppinglist/",
+        "note": "Renders (2745 characters of text, 26 images/canvases)."
+      },
+      "urlSource": "Your Own Interactive World!E10"
     },
     {
       "id": "s01-10",
@@ -136,7 +833,16 @@
       "url": "https://emmaschonfeld.github.io/3D-Solar-System/",
       "urlStatus": "valid",
       "urlNote": "Public web address.",
-      "creatureId": "c07"
+      "creatureId": "c07",
+      "course": "2241",
+      "courseCode": "MKTG 2241",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:20:34.537Z",
+        "resolvedUrl": "https://emmaschonfeld.github.io/3D-Solar-System/",
+        "note": "Renders (680 characters of text, 1 images/canvases)."
+      },
+      "urlSource": "Your Own Interactive World!E11"
     },
     {
       "id": "s01-11",
@@ -146,10 +852,19 @@
       "firstName": "Emma",
       "lastName": "Van Wickler",
       "fullName": "Emma Van Wickler",
-      "url": null,
-      "urlStatus": "missing",
-      "urlNote": "No project link submitted yet.",
-      "creatureId": "c15"
+      "url": "https://emmavanwickler-commits.github.io/holiday-frame1/",
+      "urlStatus": "valid",
+      "urlNote": "Public web address.",
+      "creatureId": "c15",
+      "course": "2241",
+      "courseCode": "MKTG 2241",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:20:34.530Z",
+        "resolvedUrl": "https://emmavanwickler-commits.github.io/holiday-frame1/",
+        "note": "Renders (317 characters of text, 0 images/canvases)."
+      },
+      "urlSource": "Your Own Interactive World!E12"
     },
     {
       "id": "s01-12",
@@ -162,7 +877,16 @@
       "url": "https://fionasheehan1.github.io/House-Christmas-Decor-/",
       "urlStatus": "valid",
       "urlNote": "Public web address.",
-      "creatureId": "c51"
+      "creatureId": "c51",
+      "course": "2241",
+      "courseCode": "MKTG 2241",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:20:38.147Z",
+        "resolvedUrl": "https://fionasheehan1.github.io/House-Christmas-Decor-/",
+        "note": "Renders (593 characters of text, 1 images/canvases)."
+      },
+      "urlSource": "Your Own Interactive World!E13"
     },
     {
       "id": "s01-13",
@@ -175,7 +899,16 @@
       "url": "https://gmarie30.github.io/exposure-camera-lab/",
       "urlStatus": "valid",
       "urlNote": "Public web address.",
-      "creatureId": "c28"
+      "creatureId": "c28",
+      "course": "2241",
+      "courseCode": "MKTG 2241",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:20:37.095Z",
+        "resolvedUrl": "https://gmarie30.github.io/exposure-camera-lab/",
+        "note": "Renders (1365 characters of text, 1 images/canvases)."
+      },
+      "urlSource": "Your Own Interactive World!E14"
     },
     {
       "id": "s01-14",
@@ -188,7 +921,16 @@
       "url": "https://grahamfields3.github.io/pinpoint-golf-simulator/",
       "urlStatus": "valid",
       "urlNote": "Public web address.",
-      "creatureId": "c47"
+      "creatureId": "c47",
+      "course": "2241",
+      "courseCode": "MKTG 2241",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:20:38.720Z",
+        "resolvedUrl": "https://grahamfields3.github.io/pinpoint-golf-simulator/",
+        "note": "Renders (1270 characters of text, 7 images/canvases)."
+      },
+      "urlSource": "Your Own Interactive World!E15"
     },
     {
       "id": "s01-15",
@@ -201,7 +943,16 @@
       "url": "https://josselly.github.io/dreamgarage/index.html",
       "urlStatus": "valid",
       "urlNote": "Public web address.",
-      "creatureId": "c43"
+      "creatureId": "c43",
+      "course": "2241",
+      "courseCode": "MKTG 2241",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:20:39.407Z",
+        "resolvedUrl": "https://josselly.github.io/dreamgarage/index.html",
+        "note": "Renders (360 characters of text, 1 images/canvases)."
+      },
+      "urlSource": "Your Own Interactive World!E16"
     },
     {
       "id": "s01-16",
@@ -214,7 +965,16 @@
       "url": "https://karentang-cloud.github.io/hybrid-closed-loop-insulin-pump/",
       "urlStatus": "valid",
       "urlNote": "Public web address.",
-      "creatureId": "c11"
+      "creatureId": "c11",
+      "course": "2241",
+      "courseCode": "MKTG 2241",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:20:40.923Z",
+        "resolvedUrl": "https://karentang-cloud.github.io/hybrid-closed-loop-insulin-pump/",
+        "note": "Renders (1353 characters of text, 1 images/canvases)."
+      },
+      "urlSource": "Your Own Interactive World!E17"
     },
     {
       "id": "s01-17",
@@ -227,7 +987,16 @@
       "url": "https://katherinepillow.github.io/Fashion-Wardrobe-Builder/",
       "urlStatus": "valid",
       "urlNote": "Public web address.",
-      "creatureId": "c57"
+      "creatureId": "c57",
+      "course": "2241",
+      "courseCode": "MKTG 2241",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:20:41.799Z",
+        "resolvedUrl": "https://katherinepillow.github.io/Fashion-Wardrobe-Builder/",
+        "note": "Renders (2085 characters of text, 52 images/canvases)."
+      },
+      "urlSource": "Your Own Interactive World!E18"
     },
     {
       "id": "s01-18",
@@ -240,7 +1009,16 @@
       "url": "https://katherineoleary.github.io/influence-simulator/",
       "urlStatus": "valid",
       "urlNote": "Public web address.",
-      "creatureId": "c19"
+      "creatureId": "c19",
+      "course": "2241",
+      "courseCode": "MKTG 2241",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:20:42.279Z",
+        "resolvedUrl": "https://katherineoleary.github.io/influence-simulator/",
+        "note": "Renders (514 characters of text, 0 images/canvases)."
+      },
+      "urlSource": "Your Own Interactive World!E19"
     },
     {
       "id": "s01-19",
@@ -250,10 +1028,19 @@
       "firstName": "Katie",
       "lastName": "DeBello",
       "fullName": "Katie DeBello",
-      "url": null,
-      "urlStatus": "missing",
-      "urlNote": "No project link submitted yet.",
-      "creatureId": "c09"
+      "url": "https://kjdebello6.github.io/3D-Restaurant-Simulator-/",
+      "urlStatus": "valid",
+      "urlNote": "Public web address.",
+      "creatureId": "c09",
+      "course": "2241",
+      "courseCode": "MKTG 2241",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:20:42.965Z",
+        "resolvedUrl": "https://kjdebello6.github.io/3D-Restaurant-Simulator-/",
+        "note": "Renders (634 characters of text, 1 images/canvases)."
+      },
+      "urlSource": "Your Own Interactive World!F20 (published website; E20 held https://github.com/kjdebello6/3D-Restaurant-Simulator-.git)"
     },
     {
       "id": "s01-20",
@@ -263,10 +1050,19 @@
       "firstName": "Lani",
       "lastName": "Ferreira",
       "fullName": "Lani Ferreira",
-      "url": null,
-      "urlStatus": "missing",
-      "urlNote": "No project link submitted yet.",
-      "creatureId": "c48"
+      "url": "https://laniferreira.github.io/outfitplanner/#planner",
+      "urlStatus": "valid",
+      "urlNote": "Public web address.",
+      "creatureId": "c48",
+      "course": "2241",
+      "courseCode": "MKTG 2241",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:20:44.363Z",
+        "resolvedUrl": "https://laniferreira.github.io/outfitplanner/#planner",
+        "note": "Renders (1211 characters of text, 0 images/canvases)."
+      },
+      "urlSource": "Your Own Interactive World!E21"
     },
     {
       "id": "s01-21",
@@ -279,7 +1075,16 @@
       "url": "https://mackenziehassinger.github.io/roomify/?v=1f33469",
       "urlStatus": "valid",
       "urlNote": "Public web address.",
-      "creatureId": "c41"
+      "creatureId": "c41",
+      "course": "2241",
+      "courseCode": "MKTG 2241",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:20:46.696Z",
+        "resolvedUrl": "https://mackenziehassinger.github.io/roomify/?v=1f33469",
+        "note": "Renders (1462 characters of text, 65 images/canvases)."
+      },
+      "urlSource": "Your Own Interactive World!E22"
     },
     {
       "id": "s01-22",
@@ -289,10 +1094,19 @@
       "firstName": "Madeline",
       "lastName": "Wood",
       "fullName": "Madeline Wood",
-      "url": null,
-      "urlStatus": "missing",
-      "urlNote": "No project link submitted yet.",
-      "creatureId": "c05"
+      "url": "https://madelinewood1.github.io/Snow-Tracker/",
+      "urlStatus": "valid",
+      "urlNote": "Public web address.",
+      "creatureId": "c05",
+      "course": "2241",
+      "courseCode": "MKTG 2241",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:20:45.763Z",
+        "resolvedUrl": "https://madelinewood1.github.io/Snow-Tracker/",
+        "note": "Renders (1764 characters of text, 1 images/canvases)."
+      },
+      "urlSource": "Your Own Interactive World!E23"
     },
     {
       "id": "s01-23",
@@ -305,7 +1119,13 @@
       "url": null,
       "urlStatus": "missing",
       "urlNote": "No project link submitted yet.",
-      "creatureId": "c30"
+      "creatureId": "c30",
+      "course": "2241",
+      "courseCode": "MKTG 2241",
+      "link": {
+        "status": "unchecked"
+      },
+      "urlSource": "Your Own Interactive World!E24"
     },
     {
       "id": "s01-24",
@@ -318,7 +1138,16 @@
       "url": "https://nevemchugh-eng.github.io/outfitdesigner/",
       "urlStatus": "valid",
       "urlNote": "Public web address.",
-      "creatureId": "c58"
+      "creatureId": "c58",
+      "course": "2241",
+      "courseCode": "MKTG 2241",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:20:46.474Z",
+        "resolvedUrl": "https://nevemchugh-eng.github.io/outfitdesigner/",
+        "note": "Renders (683 characters of text, 4 images/canvases)."
+      },
+      "urlSource": "Your Own Interactive World!E25"
     },
     {
       "id": "s01-25",
@@ -328,10 +1157,19 @@
       "firstName": "Sophia",
       "lastName": "DeSantis",
       "fullName": "Sophia DeSantis",
-      "url": null,
-      "urlStatus": "missing",
-      "urlNote": "No project link submitted yet.",
-      "creatureId": "c39"
+      "url": "https://sophiadesantis.github.io/midterm-golf-passport/",
+      "urlStatus": "valid",
+      "urlNote": "Public web address.",
+      "creatureId": "c39",
+      "course": "2241",
+      "courseCode": "MKTG 2241",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:20:48.054Z",
+        "resolvedUrl": "https://sophiadesantis.github.io/midterm-golf-passport/",
+        "note": "Renders (1599 characters of text, 5 images/canvases)."
+      },
+      "urlSource": "Your Own Interactive World!E26"
     },
     {
       "id": "s01-26",
@@ -344,7 +1182,16 @@
       "url": "https://sydneymoncher-ops.github.io/boba-flavor-lab/#mixer",
       "urlStatus": "valid",
       "urlNote": "Public web address.",
-      "creatureId": "c20"
+      "creatureId": "c20",
+      "course": "2241",
+      "courseCode": "MKTG 2241",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:20:49.345Z",
+        "resolvedUrl": "https://sydneymoncher-ops.github.io/boba-flavor-lab/#mixer",
+        "note": "Renders (1397 characters of text, 0 images/canvases)."
+      },
+      "urlSource": "Your Own Interactive World!E27"
     },
     {
       "id": "s01-27",
@@ -357,7 +1204,16 @@
       "url": "https://tayloraccolla.github.io/InYourElement/",
       "urlStatus": "valid",
       "urlNote": "Public web address.",
-      "creatureId": "c04"
+      "creatureId": "c04",
+      "course": "2241",
+      "courseCode": "MKTG 2241",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:20:50.304Z",
+        "resolvedUrl": "https://tayloraccolla.github.io/InYourElement/",
+        "note": "Renders (1009 characters of text, 2 images/canvases)."
+      },
+      "urlSource": "Your Own Interactive World!E28"
     },
     {
       "id": "s01-28",
@@ -370,7 +1226,16 @@
       "url": "https://zoelabdon.github.io/3D-Fairfield-/",
       "urlStatus": "valid",
       "urlNote": "Public web address.",
-      "creatureId": "c08"
+      "creatureId": "c08",
+      "course": "2241",
+      "courseCode": "MKTG 2241",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:20:53.803Z",
+        "resolvedUrl": "https://zoelabdon.github.io/3D-Fairfield-/",
+        "note": "Renders (2911 characters of text, 1 images/canvases)."
+      },
+      "urlSource": "Your Own Interactive World!E29"
     },
     {
       "id": "s02-01",
@@ -383,7 +1248,16 @@
       "url": "https://ashleyvallila.github.io/creative-website-project/florence/",
       "urlStatus": "valid",
       "urlNote": "Public web address.",
-      "creatureId": "c14"
+      "creatureId": "c14",
+      "course": "2241",
+      "courseCode": "MKTG 2241",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:20:51.633Z",
+        "resolvedUrl": "https://ashleyvallila.github.io/creative-website-project/florence/",
+        "note": "Renders (1009 characters of text, 1 images/canvases)."
+      },
+      "urlSource": "Your Own Interactive World!E30"
     },
     {
       "id": "s02-02",
@@ -396,7 +1270,16 @@
       "url": "https://audreyfriedlein.github.io/fairfieldshoppingfinder/",
       "urlStatus": "valid",
       "urlNote": "Public web address.",
-      "creatureId": "c31"
+      "creatureId": "c31",
+      "course": "2241",
+      "courseCode": "MKTG 2241",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:20:53.140Z",
+        "resolvedUrl": "https://audreyfriedlein.github.io/fairfieldshoppingfinder/",
+        "note": "Renders (11786 characters of text, 12 images/canvases)."
+      },
+      "urlSource": "Your Own Interactive World!E31"
     },
     {
       "id": "s02-03",
@@ -406,10 +1289,19 @@
       "firstName": "Ava",
       "lastName": "Goldberg",
       "fullName": "Ava Goldberg",
-      "url": "file:///Users/avagoldberg/Desktop/Carry%20On%20closet/site/index.html",
-      "urlStatus": "invalid",
-      "urlNote": "A file:/// link points to a file on the student's own computer — nobody else can open it.",
-      "creatureId": "c40"
+      "url": "https://avagracegoldberg-a11y.github.io/Carry-On-Website-/",
+      "urlStatus": "valid",
+      "urlNote": "Public web address.",
+      "creatureId": "c40",
+      "course": "2241",
+      "courseCode": "MKTG 2241",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:20:53.886Z",
+        "resolvedUrl": "https://avagracegoldberg-a11y.github.io/Carry-On-Website-/",
+        "note": "Renders (370 characters of text, 1 images/canvases)."
+      },
+      "urlSource": "Your Own Interactive World!E32"
     },
     {
       "id": "s02-04",
@@ -422,7 +1314,16 @@
       "url": "https://carysbrowne24-dot.github.io/cook-in-3d/#recipes",
       "urlStatus": "valid",
       "urlNote": "Public web address.",
-      "creatureId": "c27"
+      "creatureId": "c27",
+      "course": "2241",
+      "courseCode": "MKTG 2241",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:20:55.300Z",
+        "resolvedUrl": "https://carysbrowne24-dot.github.io/cook-in-3d/#recipes",
+        "note": "Renders (920 characters of text, 29 images/canvases)."
+      },
+      "urlSource": "Your Own Interactive World!E33"
     },
     {
       "id": "s02-05",
@@ -435,7 +1336,16 @@
       "url": "https://connornee-1.github.io/fantasy-playbook/",
       "urlStatus": "valid",
       "urlNote": "Public web address.",
-      "creatureId": "c56"
+      "creatureId": "c56",
+      "course": "2241",
+      "courseCode": "MKTG 2241",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:20:56.913Z",
+        "resolvedUrl": "https://connornee-1.github.io/fantasy-playbook/",
+        "note": "Renders (13789 characters of text, 184 images/canvases)."
+      },
+      "urlSource": "Your Own Interactive World!E34"
     },
     {
       "id": "s02-06",
@@ -445,10 +1355,19 @@
       "firstName": "Connor",
       "lastName": "Rowland",
       "fullName": "Connor Rowland",
-      "url": null,
-      "urlStatus": "missing",
-      "urlNote": "No project link submitted yet.",
-      "creatureId": "c01"
+      "url": "https://connorrowland-ship-it.github.io/nascar-simulator/",
+      "urlStatus": "valid",
+      "urlNote": "Public web address.",
+      "creatureId": "c01",
+      "course": "2241",
+      "courseCode": "MKTG 2241",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:20:57.199Z",
+        "resolvedUrl": "https://connorrowland-ship-it.github.io/nascar-simulator/",
+        "note": "Renders (1632 characters of text, 1 images/canvases)."
+      },
+      "urlSource": "Your Own Interactive World!F35 (published website; E35 held https://github.com/connorrowland-ship-it/nascar-simulator)"
     },
     {
       "id": "s02-07",
@@ -458,10 +1377,19 @@
       "firstName": "Cooper",
       "lastName": "Penberth",
       "fullName": "Cooper Penberth",
-      "url": null,
-      "urlStatus": "missing",
-      "urlNote": "No project link submitted yet.",
-      "creatureId": "c54"
+      "url": "https://cooperpenberth-creator.github.io/FairfieldUniveristyMicroplasticsLab/",
+      "urlStatus": "valid",
+      "urlNote": "Public web address.",
+      "creatureId": "c54",
+      "course": "2241",
+      "courseCode": "MKTG 2241",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:20:57.315Z",
+        "resolvedUrl": "https://cooperpenberth-creator.github.io/FairfieldUniveristyMicroplasticsLab/",
+        "note": "Renders (1155 characters of text, 12 images/canvases)."
+      },
+      "urlSource": "Your Own Interactive World!E36"
     },
     {
       "id": "s02-08",
@@ -474,7 +1402,13 @@
       "url": null,
       "urlStatus": "missing",
       "urlNote": "No project link submitted yet.",
-      "creatureId": "c49"
+      "creatureId": "c49",
+      "course": "2241",
+      "courseCode": "MKTG 2241",
+      "link": {
+        "status": "unchecked"
+      },
+      "urlSource": "Your Own Interactive World!E37"
     },
     {
       "id": "s02-09",
@@ -484,10 +1418,19 @@
       "firstName": "Emily",
       "lastName": "Ariel",
       "fullName": "Emily Ariel",
-      "url": null,
-      "urlStatus": "missing",
-      "urlNote": "No project link submitted yet.",
-      "creatureId": "c17"
+      "url": "https://emilyariel-1216.github.io/3D-dorm-project/",
+      "urlStatus": "valid",
+      "urlNote": "Public web address.",
+      "creatureId": "c17",
+      "course": "2241",
+      "courseCode": "MKTG 2241",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:20:59.434Z",
+        "resolvedUrl": "https://emilyariel-1216.github.io/3D-dorm-project/",
+        "note": "Renders (1024 characters of text, 1 images/canvases)."
+      },
+      "urlSource": "Your Own Interactive World!E38"
     },
     {
       "id": "s02-10",
@@ -500,7 +1443,16 @@
       "url": "https://emmakainzz.github.io/pack-with-me/",
       "urlStatus": "valid",
       "urlNote": "Public web address.",
-      "creatureId": "c29"
+      "creatureId": "c29",
+      "course": "2241",
+      "courseCode": "MKTG 2241",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:21:00.887Z",
+        "resolvedUrl": "https://emmakainzz.github.io/pack-with-me/",
+        "note": "Renders (756 characters of text, 0 images/canvases)."
+      },
+      "urlSource": "Your Own Interactive World!E39"
     },
     {
       "id": "s02-11",
@@ -513,7 +1465,16 @@
       "url": "https://hannahnatlo.github.io/Virtual-Closet/",
       "urlStatus": "valid",
       "urlNote": "Public web address.",
-      "creatureId": "c38"
+      "creatureId": "c38",
+      "course": "2241",
+      "courseCode": "MKTG 2241",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:21:01.020Z",
+        "resolvedUrl": "https://hannahnatlo.github.io/Virtual-Closet/",
+        "note": "Renders (730 characters of text, 7 images/canvases)."
+      },
+      "urlSource": "Your Own Interactive World!E40"
     },
     {
       "id": "s02-12",
@@ -526,7 +1487,16 @@
       "url": "https://isabelladerisi.github.io/Event-Planner/",
       "urlStatus": "valid",
       "urlNote": "Public web address.",
-      "creatureId": "c37"
+      "creatureId": "c37",
+      "course": "2241",
+      "courseCode": "MKTG 2241",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:21:00.687Z",
+        "resolvedUrl": "https://isabelladerisi.github.io/Event-Planner/",
+        "note": "Renders (1162 characters of text, 0 images/canvases)."
+      },
+      "urlSource": "Your Own Interactive World!E41"
     },
     {
       "id": "s02-13",
@@ -539,7 +1509,13 @@
       "url": null,
       "urlStatus": "missing",
       "urlNote": "No project link submitted yet.",
-      "creatureId": "c32"
+      "creatureId": "c32",
+      "course": "2241",
+      "courseCode": "MKTG 2241",
+      "link": {
+        "status": "unchecked"
+      },
+      "urlSource": "Your Own Interactive World!E42"
     },
     {
       "id": "s02-14",
@@ -552,7 +1528,16 @@
       "url": "https://jilliankoppy.github.io/the-nourish-edit/",
       "urlStatus": "valid",
       "urlNote": "Public web address.",
-      "creatureId": "c34"
+      "creatureId": "c34",
+      "course": "2241",
+      "courseCode": "MKTG 2241",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:21:02.956Z",
+        "resolvedUrl": "https://jilliankoppy.github.io/the-nourish-edit/",
+        "note": "Renders (1783 characters of text, 10 images/canvases)."
+      },
+      "urlSource": "Your Own Interactive World!E43"
     },
     {
       "id": "s02-15",
@@ -565,7 +1550,16 @@
       "url": "https://jphayden22.github.io/Digital_Marketing_MidtermPt.2/",
       "urlStatus": "valid",
       "urlNote": "Public web address.",
-      "creatureId": "c44"
+      "creatureId": "c44",
+      "course": "2241",
+      "courseCode": "MKTG 2241",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:21:04.811Z",
+        "resolvedUrl": "https://jphayden22.github.io/Digital_Marketing_MidtermPt.2/",
+        "note": "Renders (1965 characters of text, 18 images/canvases)."
+      },
+      "urlSource": "Your Own Interactive World!E44"
     },
     {
       "id": "s02-16",
@@ -578,7 +1572,16 @@
       "url": "https://julialevesquee.github.io/Interactive-World/dist/#home",
       "urlStatus": "valid",
       "urlNote": "Public web address.",
-      "creatureId": "c36"
+      "creatureId": "c36",
+      "course": "2241",
+      "courseCode": "MKTG 2241",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:21:04.605Z",
+        "resolvedUrl": "https://julialevesquee.github.io/Interactive-World/dist/#home",
+        "note": "Renders (1312 characters of text, 6 images/canvases)."
+      },
+      "urlSource": "Your Own Interactive World!E45"
     },
     {
       "id": "s02-17",
@@ -591,7 +1594,16 @@
       "url": "https://juliatumino-coder.github.io/SQL-query-quest/",
       "urlStatus": "valid",
       "urlNote": "Public web address.",
-      "creatureId": "c24"
+      "creatureId": "c24",
+      "course": "2241",
+      "courseCode": "MKTG 2241",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:21:04.947Z",
+        "resolvedUrl": "https://juliatumino-coder.github.io/SQL-query-quest/",
+        "note": "Renders (602 characters of text, 1 images/canvases)."
+      },
+      "urlSource": "Your Own Interactive World!E46"
     },
     {
       "id": "s02-18",
@@ -604,7 +1616,16 @@
       "url": "https://kaitlyncoakley.github.io/Spin-The-Globe/#home",
       "urlStatus": "valid",
       "urlNote": "Public web address.",
-      "creatureId": "c21"
+      "creatureId": "c21",
+      "course": "2241",
+      "courseCode": "MKTG 2241",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:21:07.063Z",
+        "resolvedUrl": "https://kaitlyncoakley.github.io/Spin-The-Globe/#home",
+        "note": "Renders (1062 characters of text, 1 images/canvases)."
+      },
+      "urlSource": "Your Own Interactive World!E47"
     },
     {
       "id": "s02-19",
@@ -614,10 +1635,19 @@
       "firstName": "Kellyn",
       "lastName": "Colwell",
       "fullName": "Kellyn Colwell",
-      "url": null,
-      "urlStatus": "missing",
-      "urlNote": "No project link submitted yet.",
-      "creatureId": "c45"
+      "url": "https://kcolwell1.github.io/midterm-project/",
+      "urlStatus": "valid",
+      "urlNote": "Public web address.",
+      "creatureId": "c45",
+      "course": "2241",
+      "courseCode": "MKTG 2241",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:21:08.214Z",
+        "resolvedUrl": "https://kcolwell1.github.io/midterm-project/",
+        "note": "Renders (1837 characters of text, 2 images/canvases)."
+      },
+      "urlSource": "Your Own Interactive World!E48"
     },
     {
       "id": "s02-20",
@@ -630,7 +1660,16 @@
       "url": "https://leahhgoodman.github.io/3D-Brain-Simulator/",
       "urlStatus": "valid",
       "urlNote": "Public web address.",
-      "creatureId": "c10"
+      "creatureId": "c10",
+      "course": "2241",
+      "courseCode": "MKTG 2241",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:21:08.385Z",
+        "resolvedUrl": "https://leahhgoodman.github.io/3D-Brain-Simulator/",
+        "note": "Renders (569 characters of text, 1 images/canvases)."
+      },
+      "urlSource": "Your Own Interactive World!E49"
     },
     {
       "id": "s02-21",
@@ -643,7 +1682,16 @@
       "url": "https://madelynnmcdonough-git.github.io/midterm.proj/",
       "urlStatus": "valid",
       "urlNote": "Public web address.",
-      "creatureId": "c50"
+      "creatureId": "c50",
+      "course": "2241",
+      "courseCode": "MKTG 2241",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:21:09.100Z",
+        "resolvedUrl": "https://madelynnmcdonough-git.github.io/midterm.proj/",
+        "note": "Renders (7644 characters of text, 190 images/canvases)."
+      },
+      "urlSource": "Your Own Interactive World!E50"
     },
     {
       "id": "s02-22",
@@ -653,10 +1701,19 @@
       "firstName": "Maeve",
       "lastName": "Vernon",
       "fullName": "Maeve Vernon",
-      "url": null,
-      "urlStatus": "missing",
-      "urlNote": "No project link submitted yet.",
-      "creatureId": "c12"
+      "url": "https://maevevernon-wq.github.io/whatshouldiwear/",
+      "urlStatus": "valid",
+      "urlNote": "Public web address.",
+      "creatureId": "c12",
+      "course": "2241",
+      "courseCode": "MKTG 2241",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:21:10.546Z",
+        "resolvedUrl": "https://maevevernon-wq.github.io/whatshouldiwear/",
+        "note": "Renders (813 characters of text, 9 images/canvases)."
+      },
+      "urlSource": "Your Own Interactive World!E51"
     },
     {
       "id": "s02-23",
@@ -669,7 +1726,16 @@
       "url": "https://marcomontemagno-ctrl.github.io/hiking-website/",
       "urlStatus": "valid",
       "urlNote": "Public web address.",
-      "creatureId": "c16"
+      "creatureId": "c16",
+      "course": "2241",
+      "courseCode": "MKTG 2241",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:21:11.498Z",
+        "resolvedUrl": "https://marcomontemagno-ctrl.github.io/hiking-website/",
+        "note": "Renders (528 characters of text, 0 images/canvases)."
+      },
+      "urlSource": "Your Own Interactive World!E52"
     },
     {
       "id": "s02-24",
@@ -682,7 +1748,16 @@
       "url": "https://marymcelroy1.github.io/ocean-explorer/",
       "urlStatus": "valid",
       "urlNote": "Public web address.",
-      "creatureId": "c46"
+      "creatureId": "c46",
+      "course": "2241",
+      "courseCode": "MKTG 2241",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:21:12.093Z",
+        "resolvedUrl": "https://marymcelroy1.github.io/ocean-explorer/",
+        "note": "Renders (2249 characters of text, 1 images/canvases)."
+      },
+      "urlSource": "Your Own Interactive World!E53"
     },
     {
       "id": "s02-25",
@@ -695,7 +1770,13 @@
       "url": null,
       "urlStatus": "missing",
       "urlNote": "No project link submitted yet.",
-      "creatureId": "c23"
+      "creatureId": "c23",
+      "course": "2241",
+      "courseCode": "MKTG 2241",
+      "link": {
+        "status": "unchecked"
+      },
+      "urlSource": "Your Own Interactive World!E54"
     },
     {
       "id": "s02-26",
@@ -708,7 +1789,16 @@
       "url": "https://reaganmegill-web.github.io/HomeBuilder/",
       "urlStatus": "valid",
       "urlNote": "Public web address.",
-      "creatureId": "c06"
+      "creatureId": "c06",
+      "course": "2241",
+      "courseCode": "MKTG 2241",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:21:12.711Z",
+        "resolvedUrl": "https://reaganmegill-web.github.io/HomeBuilder/",
+        "note": "Renders (829 characters of text, 8 images/canvases)."
+      },
+      "urlSource": "Your Own Interactive World!E55"
     },
     {
       "id": "s02-27",
@@ -718,10 +1808,19 @@
       "firstName": "Saoirse",
       "lastName": "Logan",
       "fullName": "Saoirse Logan",
-      "url": null,
-      "urlStatus": "missing",
-      "urlNote": "No project link submitted yet.",
-      "creatureId": "c22"
+      "url": "https://saoirselogan.github.io/Midterm/",
+      "urlStatus": "valid",
+      "urlNote": "Public web address.",
+      "creatureId": "c22",
+      "course": "2241",
+      "courseCode": "MKTG 2241",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:21:14.159Z",
+        "resolvedUrl": "https://saoirselogan.github.io/Midterm/",
+        "note": "Renders (1684 characters of text, 3 images/canvases)."
+      },
+      "urlSource": "Your Own Interactive World!E56"
     },
     {
       "id": "s02-28",
@@ -731,10 +1830,19 @@
       "firstName": "Seth",
       "lastName": "Feldman",
       "fullName": "Seth Feldman",
-      "url": null,
-      "urlStatus": "missing",
-      "urlNote": "No project link submitted yet.",
-      "creatureId": "c18"
+      "url": "https://sethfeldmn.github.io/MidtermExam/",
+      "urlStatus": "valid",
+      "urlNote": "Public web address.",
+      "creatureId": "c18",
+      "course": "2241",
+      "courseCode": "MKTG 2241",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:21:15.267Z",
+        "resolvedUrl": "https://sethfeldmn.github.io/MidtermExam/",
+        "note": "Renders (1017 characters of text, 1 images/canvases)."
+      },
+      "urlSource": "Your Own Interactive World!E57"
     },
     {
       "id": "s02-29",
@@ -744,10 +1852,19 @@
       "firstName": "Thomas",
       "lastName": "Caruso",
       "fullName": "Thomas Caruso",
-      "url": null,
-      "urlStatus": "missing",
-      "urlNote": "No project link submitted yet.",
-      "creatureId": "c25"
+      "url": "https://thomascaruso.github.io/form-interactive-exam/",
+      "urlStatus": "valid",
+      "urlNote": "Public web address.",
+      "creatureId": "c25",
+      "course": "2241",
+      "courseCode": "MKTG 2241",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:21:16.871Z",
+        "resolvedUrl": "https://thomascaruso.github.io/form-interactive-exam/app/welcome",
+        "note": "Renders (262 characters of text, 3 images/canvases)."
+      },
+      "urlSource": "Your Own Interactive World!F58 (published website; E58 held https://github.com/ThomasCaruso/form-interactive-exam)"
     },
     {
       "id": "s02-30",
@@ -757,10 +1874,19 @@
       "firstName": "Trista",
       "lastName": "Ouellette",
       "fullName": "Trista Ouellette",
-      "url": null,
-      "urlStatus": "missing",
-      "urlNote": "No project link submitted yet.",
-      "creatureId": "c26"
+      "url": "https://tristaouellette.github.io/3D-simulator/",
+      "urlStatus": "valid",
+      "urlNote": "Public web address.",
+      "creatureId": "c26",
+      "course": "2241",
+      "courseCode": "MKTG 2241",
+      "link": {
+        "status": "working",
+        "checkedAt": "2026-11-23T06:21:16.295Z",
+        "resolvedUrl": "https://tristaouellette.github.io/3D-simulator/",
+        "note": "Renders (1166 characters of text, 4 images/canvases)."
+      },
+      "urlSource": "Your Own Interactive World!E59"
     }
   ],
   "removed": []

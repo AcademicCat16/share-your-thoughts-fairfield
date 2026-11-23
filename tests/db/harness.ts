@@ -13,7 +13,7 @@ import { createServer } from 'node:net'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import EmbeddedPostgres from 'embedded-postgres'
-import bcrypt from 'bcryptjs'
+import { hashAccessCode } from '../../shared/accessCode.ts'
 
 // `pg` ships without type declarations (and @types/pg is not installed), so describe the small surface we use.
 export interface QueryResult<R = Record<string, unknown>> { rows: R[]; rowCount: number | null }
@@ -28,26 +28,65 @@ const pg = createRequire(import.meta.url)('pg') as PgModule
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 export const MIGRATION = path.join(ROOT, 'supabase', 'migrations', '001_feedback_classroom.sql')
 
-export interface SeedStudent { id: string; section: string; first: string; last: string; url: string | null; status: 'valid' | 'missing' | 'invalid' }
+export type Course = '1101' | '2241'
+export type Section = 'pm' | '01' | '02'
+export interface SeedStudent {
+  id: string; course: Course; section: Section; sectionCode: string; first: string; last: string
+  url: string | null; status: 'valid' | 'missing' | 'invalid'; link: 'working' | 'broken' | 'unchecked'
+}
 
-/** 16 students in two sections. s01-08 has no URL, s02-08 an invalid one. */
+/**
+ * Two review pools.
+ *   MKTG 1101: pm-01 … pm-06, all with working links.
+ *   MKTG 2241: s01-01 … s01-05 and s02-01 … s02-05 (sections 01 + 02 form ONE pool). s01-05 has no link
+ *              (url_status 'missing'); s02-05 has a valid link that the audit found broken. All others valid + working.
+ */
 export const STUDENTS: SeedStudent[] = [
-  ...Array.from({ length: 8 }, (_, i) => mk('01', i + 1)),
-  ...Array.from({ length: 8 }, (_, i) => mk('02', i + 1)),
+  ...Array.from({ length: 6 }, (_, i) => mk('1101', 'pm', i + 1)),
+  ...Array.from({ length: 5 }, (_, i) => mk('2241', '01', i + 1)),
+  ...Array.from({ length: 5 }, (_, i) => mk('2241', '02', i + 1)),
 ]
-function mk(section: string, n: number): SeedStudent {
-  const id = `s${section}-${String(n).padStart(2, '0')}`
-  const missing = section === '01' && n === 8
-  const invalid = section === '02' && n === 8
+function mk(course: Course, section: Section, n: number): SeedStudent {
+  const id = section === 'pm' ? `pm-${String(n).padStart(2, '0')}` : `s${section}-${String(n).padStart(2, '0')}`
+  const missing = id === 's01-05'
+  const broken = id === 's02-05'
   return {
-    id, section, first: `First${section}${n}`, last: `O'Last${n}`,
-    url: missing ? null : invalid ? 'file:///C:/Users/me/world.html' : `https://example.org/${id}/`,
-    status: missing ? 'missing' : invalid ? 'invalid' : 'valid',
+    id, course, section, sectionCode: course === '1101' ? 'MKTG 1101' : `MKTG 2241-${section}`,
+    first: `First${id.replace('-', '')}`, last: `O'Last${n}`,
+    url: missing ? null : `https://example.org/${id}/`,
+    status: missing ? 'missing' : 'valid',
+    link: missing ? 'unchecked' : broken ? 'broken' : 'working',
   }
 }
-/** Deterministic test access codes, XXXXX-XXXXX. */
-export const codeFor = (id: string) => `T${id.replace(/\D/g, '').padEnd(4, '9').slice(0, 4)}-ABCDE`
+export const seedStudent = (id: string): SeedStudent => {
+  const s = STUDENTS.find((x) => x.id === id)
+  if (!s) throw new Error(`no seed student ${id}`)
+  return s
+}
+export const fullNameOf = (id: string) => `${seedStudent(id).first} ${seedStudent(id).last}`
+export const idsOf = (course: Course) => STUDENTS.filter((s) => s.course === course).map((s) => s.id)
+/** Seed projects that may receive reviews (valid link, audit says working). */
+export const eligibleOf = (course: Course) =>
+  STUDENTS.filter((s) => s.course === course && s.status === 'valid' && s.link === 'working').map((s) => s.id)
+
+/** Deterministic test access code per student: XXXX-XXXX-XXXX from the real alphabet (test data only). */
+export function codeFor(id: string): string {
+  const A = '23456789ABCDEFGHJKMNPQRSTUVWXYZ'
+  let h = 2166136261
+  let out = ''
+  for (let i = 0; i < 12; i++) {
+    for (const ch of `${id}#${i}`) h = Math.imul(h ^ ch.charCodeAt(0), 16777619) >>> 0
+    out += A[h % A.length]
+  }
+  return `${out.slice(0, 4)}-${out.slice(4, 8)}-${out.slice(8)}`
+}
 export const INSTRUCTOR_EMAIL = 'teacher@example.edu'
+
+/** Settings every test starts from (no write spacing, so tests can submit back to back). */
+export const TEST_SETTINGS: Record<string, number | boolean> = {
+  base_slots: 4, reviews_per_student: 4, feedback_open: true, allow_extra_reviews: false, min_seconds_between_writes: 0,
+  max_writes_per_hour: 1000, max_failed_codes_per_session: 10, max_failed_codes_global: 300,
+}
 
 export interface Claims { sub?: string; role?: string; email?: string; is_anonymous?: boolean; [k: string]: unknown }
 
@@ -64,7 +103,7 @@ async function freePort(): Promise<number> {
   })
 }
 
-const SUPABASE_STANDINS = `
+export const SUPABASE_STANDINS = `
 do $$ begin
   if not exists (select 1 from pg_roles where rolname = 'anon') then create role anon nologin noinherit; end if;
   if not exists (select 1 from pg_roles where rolname = 'authenticated') then create role authenticated nologin noinherit; end if;
@@ -114,38 +153,58 @@ export class TestDb {
     await this.seed()
   }
 
-  async connect(): Promise<PgClient> {
-    const c = new pg.Client({ host: '127.0.0.1', port: this.port, user: 'postgres', password: 'test-only-password', database: 'postgres' })
+  async connect(database = 'postgres'): Promise<PgClient> {
+    const c = new pg.Client({ host: '127.0.0.1', port: this.port, user: 'postgres', password: 'test-only-password', database })
     await c.connect()
     this.extra.push(c)
     return c
   }
 
+  /** Close connections opened with connect() (keeps the server under its connection limit). */
+  async disconnect(clients: PgClient[]): Promise<void> {
+    for (const c of clients) {
+      const i = this.extra.indexOf(c)
+      if (i >= 0) { this.extra.splice(i, 1); await c.end().catch(() => {}) }
+    }
+  }
+
   private async seed(): Promise<void> {
-    for (const [i, s] of STUDENTS.entries()) {
-      // bcryptjs writes "$2b$"; scripts/generate-access-codes.ts writes "$2a$". Seed both spellings.
-      const hash = bcrypt.hashSync(codeFor(s.id), 10)
-      const codeHash = i % 2 === 0 ? hash : `$2a$${hash.slice(4)}`
+    for (const s of STUDENTS) {
       await this.admin.query(
-        `insert into students (id, section, section_code, first_name, last_name, full_name, project_url, url_status, active)
-         values ($1,$2,$3,$4,$5,$6,$7,$8,true)`,
-        [s.id, s.section, `MKTG 2241-${s.section}`, s.first, s.last, `${s.first} ${s.last}`, s.url, s.status])
-      await this.admin.query(`insert into access_codes (student_id, code_hash) values ($1,$2)`, [s.id, codeHash])
+        `insert into students (id, course, section, section_code, first_name, last_name, full_name, project_url, url_status, link_status)
+         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+        [s.id, s.course, s.section, s.sectionCode, s.first, s.last, `${s.first} ${s.last}`, s.url, s.status, s.link])
+      await this.admin.query(`insert into access_codes (student_id, code_hash) values ($1,$2)`, [s.id, hashAccessCode(codeFor(s.id))])
     }
     await this.admin.query(`insert into instructors (email) values ($1)`, [INSTRUCTOR_EMAIL])
   }
 
-  /** Back to the freshly seeded state (fast; access-code hashes are kept). */
+  /** Back to the freshly seeded state (fast; access-code hashes are kept). Removes students that tests added. */
   async reset(settings: Partial<Record<string, number | boolean>> = {}): Promise<void> {
-    await this.admin.query(`truncate comments, reservations, write_events, student_sessions, audit_log`)
-    await this.admin.query(`update access_codes set failed_attempts = 0, locked_until = null, revoked_at = null`)
-    await this.admin.query(`update students set active = true`)
-    await this.admin.query(`update settings set max_comments_per_project = 4, max_reviews_per_reviewer = 4, feedback_open = true,
-                            reservation_minutes = 20, min_seconds_between_writes = 0, max_writes_per_hour = 1000 where id = 1`)
-    for (const [k, v] of Object.entries(settings)) {
+    await this.admin.query(`truncate comments, assignments, project_slots, write_events, student_sessions, audit_log, code_attempts`)
+    const ids = STUDENTS.map((s) => s.id)
+    await this.admin.query(`delete from access_codes where student_id <> all($1)`, [ids])
+    await this.admin.query(`delete from students where id <> all($1)`, [ids])
+    await this.admin.query(`update access_codes set revoked_at = null`)
+    for (const s of STUDENTS) {
+      await this.admin.query(
+        `update students set course=$2, section=$3, section_code=$4, first_name=$5, last_name=$6, full_name=$7, project_url=$8,
+                url_status=$9, link_status=$10, active=true, participating=true, hidden=false where id=$1`,
+        [s.id, s.course, s.section, s.sectionCode, s.first, s.last, `${s.first} ${s.last}`, s.url, s.status, s.link])
+    }
+    await this.admin.query(`delete from instructors where email <> $1`, [INSTRUCTOR_EMAIL])
+    for (const [k, v] of Object.entries({ ...TEST_SETTINGS, ...settings })) {
       if (!/^[a-z_]+$/.test(k)) throw new Error(`bad setting ${k}`)
       await this.admin.query(`update settings set ${k} = $1 where id = 1`, [v])
     }
+  }
+
+  /** Add an extra student (valid, working link) for one test; reset() removes it again. */
+  async addStudent(id: string, course: Course, section: Section): Promise<void> {
+    await this.admin.query(
+      `insert into students (id, course, section, section_code, first_name, last_name, full_name, project_url, url_status, link_status)
+       values ($1,$2,$3,$4,'Extra',$1,'Extra ' || $1,'https://example.org/' || $1 || '/','valid','working')`,
+      [id, course, section, course === '1101' ? 'MKTG 1101' : `MKTG 2241-${section}`])
   }
 
   /** Bind a fresh anonymous auth user to a student directly (redeem_access_code is tested separately). */
@@ -155,13 +214,47 @@ export class TestDb {
     return anonUser(sub)
   }
 
-  /** Insert a published comment directly (bypasses all rules — for setting up scenarios). */
-  async addComment(projectId: string, reviewerId: string, status: 'published' | 'removed' = 'published'): Promise<string> {
+  /** Insert a comment directly (bypasses all rules — for setting up scenarios). */
+  async addComment(projectId: string, reviewerId: string, status: 'published' | 'removed' = 'published', extra = false): Promise<string> {
     const r = await this.admin.query<{ id: string }>(
-      `insert into comments (project_id, reviewer_id, reviewer_name, enjoyed, suggestion, status)
-       values ($1,$2,(select full_name from students where id=$2),'I enjoyed the world a lot.','Maybe add more signposts.',$3) returning id`,
-      [projectId, reviewerId, status])
+      `insert into comments (course, project_id, reviewer_id, reviewer_name, enjoyed, suggestion, status, extra)
+       values ((select course from students where id=$1),$1,$2,(select full_name from students where id=$2),
+               'I enjoyed the world a lot.','Maybe add more signposts.',$3,$4) returning id`,
+      [projectId, reviewerId, status, extra])
     return r.rows[0].id
+  }
+
+  /** Insert (or overwrite) an assignment directly. */
+  async assign(reviewerId: string, projectId: string, status: 'pending' | 'completed' | 'released' = 'pending',
+    commentId: string | null = null): Promise<void> {
+    await this.admin.query(
+      `insert into assignments (course, reviewer_id, project_id, status, comment_id)
+       values ((select course from students where id=$2),$1,$2,$3,$4)
+       on conflict (reviewer_id, project_id) do update set status = excluded.status, comment_id = excluded.comment_id`,
+      [reviewerId, projectId, status, commentId])
+  }
+
+  /** A finished review: published comment plus the completed assignment pointing at it. */
+  async completed(reviewerId: string, projectId: string): Promise<string> {
+    const id = await this.addComment(projectId, reviewerId)
+    await this.assign(reviewerId, projectId, 'completed', id)
+    return id
+  }
+
+  async setCapacity(projectId: string, capacity: number): Promise<void> {
+    await this.admin.query(
+      `insert into project_slots (project_id, capacity) values ($1,$2) on conflict (project_id) do update set capacity = excluded.capacity`,
+      [projectId, capacity])
+  }
+
+  async published(projectId: string): Promise<number> {
+    const r = await this.admin.query<{ n: string }>(`select count(*) n from comments where project_id=$1 and status='published'`, [projectId])
+    return Number(r.rows[0].n)
+  }
+
+  async assignmentStatus(reviewerId: string, projectId: string): Promise<string | null> {
+    const r = await this.admin.query<{ status: string }>(`select status from assignments where reviewer_id=$1 and project_id=$2`, [reviewerId, projectId])
+    return r.rows[0]?.status ?? null
   }
 
   async stop(): Promise<void> {

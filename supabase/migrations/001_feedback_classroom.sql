@@ -1,12 +1,12 @@
 -- =====================================================================================================================
 --  The Feedback Classroom — Live-mode database (Supabase / Postgres 15+)
---  Migration 001
+--  Migration 001, contract v2 (two courses, assigned reviews) — see supabase/CONTRACT.md
 --
 --  HOW TO USE (instructor)
 --  -----------------------
 --  1. Open your Supabase project → SQL Editor → New query.
---  2. Paste this WHOLE file and press "Run". It is safe to run again later (it only creates what is missing and
---     replaces the functions with the versions in this file). It never deletes students or comments.
+--  2. Paste this WHOLE file and press "Run". It is safe to run again later: it only creates what is missing and
+--     replaces the functions with the versions in this file. It never deletes students or comments.
 --  3. Continue with supabase/SETUP.md (instructor e-mail, roster, access codes).
 --
 --  WHAT THIS FILE GUARANTEES
@@ -17,24 +17,33 @@
 --  * Everything the app does goes through the functions below (Supabase calls them "RPC"). Each one checks who is
 --    calling (auth.uid() / auth.jwt()), enforces the rules from shared/rules.ts, and raises one of the short error
 --    codes the app understands (e.g. 'project_full').
---  * Access codes are stored only as bcrypt hashes and no function ever returns them.
---  * Caps (4 comments per project, 4 reviews per reviewer) hold even when many students press "Send" at the same
---    moment: submit_comment locks the two students rows involved before counting.
+--  * Access codes are stored only as SHA-256 hashes and no function ever returns them.
+--  * A project never gets more published comments than its capacity, even when many students press "Send" at the
+--    same moment: submit_comment locks the two students rows involved before counting, and the instructor's
+--    "apply assignments" locks every students row of the course.
 --
 --  The rule numbers live in the one-row table public.settings, so you can change them without editing code, e.g.
 --      update public.settings set feedback_open = false where id = 1;
---  (or use the "close feedback" switch on the instructor dashboard).
+--  (or use the pause switch on the instructor dashboard).
 -- =====================================================================================================================
 
 create schema if not exists extensions;
-create extension if not exists pgcrypto with schema extensions;
 
--- A schema the API never exposes. It holds the failed-attempt counters for access codes (see redeem_access_code).
-create schema if not exists feedback_private;
-revoke all on schema feedback_private from public;
-do $$ begin
-  execute 'revoke all on schema feedback_private from anon, authenticated';
-exception when undefined_object then null; end $$;
+
+-- =====================================================================================================================
+--  UPGRADE FROM THE FIRST VERSION (v1 was never used with real students). These objects no longer exist in v2.
+--  Each line does nothing on a fresh database or on a database that already has v2.
+-- =====================================================================================================================
+drop schema   if exists feedback_private cascade;                   -- v1 failed-attempt sequences + status view
+drop function if exists public._ac_sync() cascade;                  -- also drops the v1 trigger on access_codes
+drop function if exists public._ac_state_get(text);
+drop function if exists public._ac_state_set(text, int, timestamptz);
+drop function if exists public._ac_seq(text);
+drop function if exists public.recommend_project();
+drop function if exists public.get_project_counts();
+drop function if exists public.redeem_access_code(text, text);      -- v1 took (student_id, code); v2 takes the code only
+drop function if exists public.whoami();                            -- result columns changed in v2 (re-created below)
+drop table    if exists public.reservations;
 
 
 -- =====================================================================================================================
@@ -43,39 +52,67 @@ exception when undefined_object then null; end $$;
 
 -- One row (id = 1) of rule settings. Defaults are the constants in shared/rules.ts.
 create table if not exists public.settings (
-  id                         int primary key default 1 check (id = 1),
-  max_comments_per_project   int  not null default 4  check (max_comments_per_project >= 0),
-  max_reviews_per_reviewer   int  not null default 4  check (max_reviews_per_reviewer >= 0),
-  feedback_open              bool not null default true,
-  reservation_minutes        int  not null default 20 check (reservation_minutes >= 0),
-  min_seconds_between_writes int  not null default 15 check (min_seconds_between_writes >= 0),
-  max_writes_per_hour        int  not null default 20 check (max_writes_per_hour >= 0)
+  id int primary key default 1 check (id = 1)
 );
+alter table public.settings add column if not exists base_slots                   int  not null default 4   check (base_slots >= 0);
+alter table public.settings add column if not exists reviews_per_student          int  not null default 4   check (reviews_per_student >= 0);
+alter table public.settings add column if not exists feedback_open                bool not null default true;
+alter table public.settings add column if not exists allow_extra_reviews          bool not null default false;
+alter table public.settings add column if not exists min_seconds_between_writes   int  not null default 15  check (min_seconds_between_writes >= 0);
+alter table public.settings add column if not exists max_writes_per_hour          int  not null default 20  check (max_writes_per_hour >= 0);
+alter table public.settings add column if not exists max_failed_codes_per_session int  not null default 10  check (max_failed_codes_per_session >= 0);
+alter table public.settings add column if not exists max_failed_codes_global      int  not null default 300 check (max_failed_codes_global >= 0);
+alter table public.settings drop column if exists max_comments_per_project;        -- v1 names
+alter table public.settings drop column if exists max_reviews_per_reviewer;
+alter table public.settings drop column if exists reservation_minutes;
 insert into public.settings (id) values (1) on conflict (id) do nothing;
 
--- The roster (uploaded with supabase/seed/roster_upsert.sql, generated by `npm run live-sql`).
+-- The roster of both courses (uploaded with supabase/seed/roster_upsert.sql, generated by `npm run live-sql`).
 -- Students are never deleted; a student who left is set active = false so comments stay linked.
 create table if not exists public.students (
   id           text primary key,
+  course       text not null,
   section      text not null,
-  section_code text not null,
+  section_code text not null default '',
   first_name   text not null default '',
   last_name    text not null default '',
   full_name    text not null,
   project_url  text null,
-  url_status   text not null check (url_status in ('valid', 'missing', 'invalid')),
-  active       bool not null default true
+  url_status   text not null,
+  link_status  text not null default 'unchecked',
+  active       bool not null default true,
+  participating bool not null default true,
+  hidden       bool not null default false
 );
+alter table public.students add column if not exists course text;
+update public.students set course = '2241' where course is null;                    -- v1 held MKTG 2241 only
+alter table public.students alter column course set not null;
+alter table public.students add column if not exists link_status   text not null default 'unchecked';
+alter table public.students add column if not exists participating bool not null default true;
+alter table public.students add column if not exists hidden        bool not null default false;
 
--- One bcrypt hash per student (uploaded with private/access_codes_upsert.sql from `npm run access-codes`).
+-- One SHA-256 hash per student (uploaded with private/access_codes_upsert.sql from `npm run access-codes`).
 create table if not exists public.access_codes (
-  student_id      text primary key references public.students (id),
-  code_hash       text not null check (code_hash ~ '^\$2[abxy]\$[0-9]{2}\$'),
-  created_at      timestamptz not null default now(),
-  revoked_at      timestamptz null,
-  failed_attempts int not null default 0,
-  locked_until    timestamptz null
+  student_id text primary key references public.students (id),
+  code_hash  text not null,
+  created_at timestamptz not null default now(),
+  revoked_at timestamptz null
 );
+-- v1 stored bcrypt hashes, which v2 cannot check. They are unusable, so they are removed (new codes must be issued).
+alter table public.access_codes drop constraint if exists access_codes_code_hash_check;
+delete from public.access_codes where code_hash !~ '^[0-9a-f]{64}$';
+alter table public.access_codes drop column if exists failed_attempts;
+alter table public.access_codes drop column if exists locked_until;
+
+-- Every access-code try (for the per-browser and global throttles). A wrong code does not raise, so these rows stay.
+create table if not exists public.code_attempts (
+  id       bigint generated always as identity primary key,
+  auth_uid uuid null,
+  ok       bool not null,
+  at       timestamptz not null default now()
+);
+create index if not exists code_attempts_uid_at_idx on public.code_attempts (auth_uid, at);
+create index if not exists code_attempts_at_idx     on public.code_attempts (at);
 
 -- Which signed-in browser (Supabase anonymous user id) belongs to which student. One student may use several devices.
 create table if not exists public.student_sessions (
@@ -85,31 +122,50 @@ create table if not exists public.student_sessions (
 );
 create index if not exists student_sessions_student_idx on public.student_sessions (student_id);
 
+-- Slot capacity per project (absent row = settings.base_slots). Written by admin_apply_assignments.
+create table if not exists public.project_slots (
+  project_id text primary key references public.students (id),
+  capacity   int not null check (capacity >= 0),
+  updated_at timestamptz not null default now()
+);
+
 create table if not exists public.comments (
   id             uuid primary key default gen_random_uuid(),
+  course         text not null,
   project_id     text not null references public.students (id),
   reviewer_id    text not null references public.students (id),
   reviewer_name  text not null,                -- copied from the roster at submission; never typed by the student
   pronouns       text null,
   enjoyed        text not null,
   suggestion     text not null,
-  status         text not null default 'published' check (status in ('published', 'removed')),
+  status         text not null default 'published',
   removed_reason text null,
   removed_at     timestamptz null,
+  extra          bool not null default false,  -- an unassigned review the instructor allowed
   created_at     timestamptz not null default now(),
-  updated_at     timestamptz not null default now(),
-  constraint comments_one_per_pair unique (project_id, reviewer_id),
-  constraint comments_not_self check (project_id <> reviewer_id)
+  updated_at     timestamptz not null default now()
 );
+alter table public.comments add column if not exists course text;
+update public.comments c set course = s.course from public.students s where s.id = c.project_id and c.course is null;
+alter table public.comments alter column course set not null;
+alter table public.comments add column if not exists extra bool not null default false;
 create index if not exists comments_project_status_idx  on public.comments (project_id, status);
 create index if not exists comments_reviewer_status_idx on public.comments (reviewer_id, status);
 
--- Soft reservations made by "Find a World That Needs Feedback". They steer other reviewers away; they never block.
-create table if not exists public.reservations (
-  reviewer_id text primary key references public.students (id),
+-- Review assignments (the "Feedback Quest"), generated per course on the instructor dashboard.
+create table if not exists public.assignments (
+  id          uuid primary key default gen_random_uuid(),
+  course      text not null,
+  reviewer_id text not null references public.students (id),
   project_id  text not null references public.students (id),
-  expires_at  timestamptz not null
+  status      text not null default 'pending',
+  comment_id  uuid null references public.comments (id) on delete set null,
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now()
 );
+create index if not exists assignments_project_status_idx  on public.assignments (project_id, status);
+create index if not exists assignments_reviewer_status_idx on public.assignments (reviewer_id, status);
+create index if not exists assignments_course_status_idx   on public.assignments (course, status);
 
 -- Every successful write, for rate limiting.
 create table if not exists public.write_events (
@@ -125,7 +181,7 @@ create table if not exists public.instructors (
   email text primary key
 );
 
--- Record of instructor actions (remove / restore / open-close).
+-- Record of instructor actions.
 create table if not exists public.audit_log (
   id     bigint generated always as identity primary key,
   at     timestamptz not null default now(),
@@ -144,6 +200,34 @@ insert into public.blocked_terms (term) values
   ('sucks')
 on conflict (term) do nothing;
 
+-- Named constraints, added only when missing (so a re-run, or an upgraded v1 table, ends up identical).
+do $$
+declare r record;
+begin
+  for r in select * from (values
+    ('students',      'students_course_check',         $c$check (course in ('1101', '2241'))$c$),
+    ('students',      'students_section_check',        $c$check (section in ('pm', '01', '02'))$c$),
+    ('students',      'students_course_section_check', $c$check ((course = '1101' and section = 'pm') or (course = '2241' and section in ('01', '02')))$c$),
+    ('students',      'students_url_status_check',     $c$check (url_status in ('valid', 'missing', 'invalid'))$c$),
+    ('students',      'students_link_status_check',    $c$check (link_status in ('working', 'broken', 'unchecked'))$c$),
+    ('access_codes',  'access_codes_code_hash_sha256', $c$check (code_hash ~ '^[0-9a-f]{64}$')$c$),
+    ('access_codes',  'access_codes_code_hash_key',    $c$unique (code_hash)$c$),
+    ('comments',      'comments_status_check',         $c$check (status in ('published', 'removed'))$c$),
+    ('comments',      'comments_course_check',         $c$check (course in ('1101', '2241'))$c$),
+    ('comments',      'comments_one_per_pair',         $c$unique (project_id, reviewer_id)$c$),
+    ('comments',      'comments_not_self',             $c$check (project_id <> reviewer_id)$c$),
+    ('assignments',   'assignments_status_check',      $c$check (status in ('pending', 'completed', 'released'))$c$),
+    ('assignments',   'assignments_course_check',      $c$check (course in ('1101', '2241'))$c$),
+    ('assignments',   'assignments_one_per_pair',      $c$unique (reviewer_id, project_id)$c$),
+    ('assignments',   'assignments_not_self',          $c$check (reviewer_id <> project_id)$c$)
+  ) v(tbl, name, def) loop
+    if not exists (select 1 from pg_constraint
+                    where conrelid = format('public.%I', r.tbl)::regclass and conname = r.name) then
+      execute format('alter table public.%I add constraint %I %s', r.tbl, r.name, r.def);
+    end if;
+  end loop;
+end $$;
+
 
 -- =====================================================================================================================
 --  LOCK-DOWN: row-level security on, no policies, no table privileges for the browser roles.
@@ -152,16 +236,37 @@ on conflict (term) do nothing;
 alter table public.settings         enable row level security;
 alter table public.students         enable row level security;
 alter table public.access_codes     enable row level security;
+alter table public.code_attempts    enable row level security;
 alter table public.student_sessions enable row level security;
+alter table public.project_slots    enable row level security;
+alter table public.assignments      enable row level security;
 alter table public.comments         enable row level security;
-alter table public.reservations     enable row level security;
 alter table public.write_events     enable row level security;
 alter table public.instructors      enable row level security;
 alter table public.audit_log        enable row level security;
 alter table public.blocked_terms    enable row level security;
 
-revoke all on all tables    in schema public from anon, authenticated;
-revoke all on all sequences in schema public from anon, authenticated;
+-- No policies on these tables, ever: drop any that someone added by hand.
+do $$
+declare r record;
+begin
+  for r in select policyname, tablename from pg_policies
+            where schemaname = 'public'
+              and tablename in ('settings', 'students', 'access_codes', 'code_attempts', 'student_sessions',
+                                'project_slots', 'assignments', 'comments', 'write_events', 'instructors',
+                                'audit_log', 'blocked_terms')
+  loop
+    execute format('drop policy %I on public.%I', r.policyname, r.tablename);
+  end loop;
+end $$;
+
+revoke all on all tables    in schema public from public;
+revoke all on all sequences in schema public from public;
+do $$ begin
+  execute 'revoke all on all tables    in schema public from anon, authenticated';
+  execute 'revoke all on all sequences in schema public from anon, authenticated';
+exception when undefined_object then null;   -- roles exist on Supabase; tolerate plain Postgres
+end $$;
 
 
 -- =====================================================================================================================
@@ -187,7 +292,74 @@ as $$
    where ss.auth_uid = auth.uid()
 $$;
 
--- Same characters JavaScript's String.prototype.trim() removes.
+-- A project that may receive reviews: on the roster, not hidden, a valid link that the link audit found working.
+create or replace function public._eligible(p_project_id text)
+returns boolean
+language sql stable security definer
+set search_path = public, extensions, pg_temp
+as $$
+  select exists (select 1 from public.students s
+                  where s.id = p_project_id and s.active and not s.hidden
+                    and s.url_status = 'valid' and s.link_status = 'working')
+$$;
+
+-- Published comments on a project.
+create or replace function public._published(p_project_id text)
+returns int
+language sql stable security definer
+set search_path = public, extensions, pg_temp
+as $$ select count(*)::int from public.comments c where c.project_id = p_project_id and c.status = 'published' $$;
+
+-- Slot capacity of a project (project_slots, or settings.base_slots when there is no row).
+create or replace function public._capacity(p_project_id text)
+returns int
+language sql stable security definer
+set search_path = public, extensions, pg_temp
+as $$
+  select coalesce((select ps.capacity from public.project_slots ps where ps.project_id = p_project_id),
+                  (select s.base_slots from public.settings s where s.id = 1))
+$$;
+
+-- Lock two students rows FOR UPDATE, always lower id first (every function that locks two rows uses this order,
+-- and admin_apply_assignments locks a whole course in id order, so no two calls can deadlock).
+create or replace function public._lock_pair(p_a text, p_b text)
+returns void
+language plpgsql volatile security definer
+set search_path = public, extensions, pg_temp
+as $$
+begin
+  perform 1 from public.students s where s.id = least(p_a, p_b)    for update;
+  perform 1 from public.students s where s.id = greatest(p_a, p_b) for update;
+end $$;
+
+-- Mirrors normalizeAccessCode() in shared/accessCode.ts: JavaScript upper-case, drop everything outside A–Z / 0–9,
+-- re-dash as XXXX-XXXX-XXXX when exactly 12 characters remain. The few non-ASCII characters whose JavaScript
+-- upper-case contains ASCII letters (ß → SS, ﬁ → FI, ı → I, …) are mapped first; ASCII letters are upper-cased with
+-- translate(), so the result does not depend on the database locale.
+create or replace function public._normalize_access_code(p text)
+returns text
+language plpgsql immutable security definer
+set search_path = public, extensions, pg_temp
+as $$
+declare v text := coalesce(p, '');
+begin
+  v := translate(v, U&'\0131\0149\017F\01F0\1E96\1E97\1E98\1E99\1E9A', 'INSJHTWYA');
+  v := replace(replace(replace(replace(replace(replace(replace(replace(v,
+         U&'\00DF', 'SS'), U&'\FB00', 'FF'), U&'\FB01', 'FI'), U&'\FB02', 'FL'),
+         U&'\FB03', 'FFI'), U&'\FB04', 'FFL'), U&'\FB05', 'ST'), U&'\FB06', 'ST');
+  v := translate(v, 'abcdefghijklmnopqrstuvwxyz', 'ABCDEFGHIJKLMNOPQRSTUVWXYZ');
+  v := regexp_replace(v, '[^A-Z0-9]', '', 'g');
+  if char_length(v) = 12 then v := substr(v, 1, 4) || '-' || substr(v, 5, 4) || '-' || substr(v, 9, 4); end if;
+  return v;
+end $$;
+
+-- Mirrors hashAccessCode() in shared/accessCode.ts.
+create or replace function public._access_code_hash(p text)
+returns text
+language sql immutable security definer
+set search_path = public, extensions, pg_temp
+as $$ select encode(sha256(convert_to(public._normalize_access_code(p), 'UTF8')), 'hex') $$;
+
 -- Length as JavaScript counts it (UTF-16 code units): characters outside the Basic Multilingual Plane count twice.
 create or replace function public._js_length(p text)
 returns int
@@ -198,7 +370,8 @@ as $$
 $$;
 
 -- Mirrors normalizeText() in shared/rules.ts:
---   CRLF/CR → LF; runs of space/tab/no-break-space → one space; 3+ newlines → 2; trim.
+--   CRLF/CR → LF; runs of space/tab/no-break-space → one space; 3+ newlines → 2; trim exactly what
+--   JavaScript's String.prototype.trim() removes.
 create or replace function public._normalize_text(p text)
 returns text
 language sql immutable security definer
@@ -208,23 +381,24 @@ as $$
            regexp_replace(
              regexp_replace(
                regexp_replace(coalesce(p, ''), '\r\n?', E'\n', 'g'),
-             '[ \t ]+', ' ', 'g'),
+             '[ \t\u00a0]+', ' ', 'g'),
            '\n{3,}', E'\n\n', 'g'),
-         '^[\t\n\v\f\r    -     　﻿]+|[\t\n\v\f\r    -     　﻿]+$',
+         '^[\t\n\v\f\r \u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff]+|[\t\n\v\f\r \u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff]+$',
          '', 'g')
 $$;
 
 -- Mirrors findBlockedTerm() in shared/rules.ts: lower-case, every run of characters other than a-z 0-9 ' and space
 -- becomes one space, then a term matches as a whole word, or with a plain "s" / "ed" suffix.
--- Returns the matched term or null.
+-- U+212A (Kelvin sign) lower-cases to "k" and U+0130 (dotted capital I) to "i" + U+0307 in JavaScript; they are
+-- mapped explicitly so the result does not depend on the database locale. Returns the matched term or null.
 create or replace function public._find_blocked_term(p text)
 returns text
 language sql stable security definer
 set search_path = public, extensions, pg_temp
 as $$
   with t as (
-    -- U+212A (Kelvin sign) and U+0130 (dotted capital I) lower-case to ASCII letters in JavaScript.
-    select ' ' || regexp_replace(lower(translate(coalesce(p, ''), U&'\212A\0130', 'ki')), '[^a-z0-9'' ]+', ' ', 'g') || ' ' as s
+    select ' ' || regexp_replace(lower(replace(translate(coalesce(p, ''), U&'\212A', 'k'), U&'\0130', U&'i\0307')),
+                                 '[^a-z0-9'' ]+', ' ', 'g') || ' ' as s
   )
   select b.term
     from public.blocked_terms b, t
@@ -279,172 +453,46 @@ begin
   end if;
 end $$;
 
--- ---------------------------------------------------------------------------------------------------------------------
--- Failed access-code attempts.
--- A wrong code must RAISE 'bad_code' (that is how the app learns it was wrong), and raising an error undoes every
--- table change made in the same request — so a counter kept only in access_codes.failed_attempts would never grow.
--- Postgres sequences are the one thing an error does not undo, so each access code gets a small private sequence
--- holding   locked_until_epoch_seconds * 100 + failed_attempts.
--- The columns access_codes.failed_attempts / locked_until are the instructor-facing copy: setting them (e.g. the
--- access-code upsert sets them to 0 / null) resets the counter through the trigger below. To see the live state:
---     select * from feedback_private.access_code_status;
--- ---------------------------------------------------------------------------------------------------------------------
-create or replace function public._ac_seq(p_student_id text)
+-- Instructor check; returns the instructor's (lower-case) e-mail for the audit log.
+create or replace function public._require_instructor()
 returns text
-language sql immutable security definer
-set search_path = public, extensions, pg_temp
-as $$ select format('feedback_private.%I', 'ac_' || md5(p_student_id)) $$;
-
-create or replace function public._ac_state_set(p_student_id text, p_failed int, p_locked_until timestamptz)
-returns void
-language plpgsql security definer
+language plpgsql stable security definer
 set search_path = public, extensions, pg_temp
 as $$
 begin
-  perform setval(public._ac_seq(p_student_id)::regclass,
-                 coalesce(floor(extract(epoch from p_locked_until))::bigint, 0) * 100 + least(greatest(coalesce(p_failed, 0), 0), 99),
-                 true);
+  if not public.is_instructor() then raise exception 'not_instructor'; end if;
+  return lower(auth.jwt() ->> 'email');
 end $$;
-
-create or replace function public._ac_state_get(p_student_id text, out failed int, out locked_until timestamptz)
-language plpgsql security definer
-set search_path = public, extensions, pg_temp
-as $$
-declare v bigint;
-begin
-  execute format('select last_value from %s', public._ac_seq(p_student_id)) into v;
-  failed := (v % 100)::int;
-  locked_until := case when v / 100 = 0 then null else to_timestamp(v / 100) end;
-end $$;
-
-create or replace function public._ac_sync()
-returns trigger
-language plpgsql security definer
-set search_path = public, extensions, pg_temp
-as $$
-begin
-  if tg_op = 'DELETE' then
-    execute format('drop sequence if exists %s', public._ac_seq(old.student_id));
-    return old;
-  end if;
-  execute format('create sequence if not exists %s as bigint minvalue 0 start 0', public._ac_seq(new.student_id));
-  execute format('revoke all on sequence %s from public', public._ac_seq(new.student_id));
-  perform public._ac_state_set(new.student_id, new.failed_attempts, new.locked_until);
-  return new;
-end $$;
-
-drop trigger if exists access_codes_sync on public.access_codes;
-create trigger access_codes_sync
-  after insert or update or delete on public.access_codes
-  for each row execute function public._ac_sync();
-
--- Make sure codes that existed before this trigger have their counter (existing counters are left untouched).
-do $$
-declare r record;
-begin
-  for r in select * from public.access_codes loop
-    continue when to_regclass(public._ac_seq(r.student_id)) is not null;
-    execute format('create sequence %s as bigint minvalue 0 start 0', public._ac_seq(r.student_id));
-    execute format('revoke all on sequence %s from public', public._ac_seq(r.student_id));
-    perform public._ac_state_set(r.student_id, r.failed_attempts, r.locked_until);
-  end loop;
-end $$;
-
-create or replace view feedback_private.access_code_status as
-  select a.student_id, a.created_at, a.revoked_at, st.failed, st.locked_until
-    from public.access_codes a, lateral public._ac_state_get(a.student_id) st;
-revoke all on feedback_private.access_code_status from public;
 
 
 -- =====================================================================================================================
---  PUBLIC FUNCTIONS (called by the app)
+--  STUDENT FUNCTIONS (called by the app)
 -- =====================================================================================================================
 
--- Published comment counts for every active student (numbers only). Also works before signing in.
-create or replace function public.get_project_counts()
-returns table (project_id text, published int)
+-- Published count and capacity of every project that may receive reviews (numbers only). Works before signing in.
+create or replace function public.get_public_status()
+returns table (project_id text, course text, published int, capacity int)
 language sql stable security definer
 set search_path = public, extensions, pg_temp
 as $$
-  select s.id,
-         (select count(*)::int from public.comments c where c.project_id = s.id and c.status = 'published')
+  select s.id, s.course, public._published(s.id), public._capacity(s.id)
     from public.students s
-   where s.active
+   where s.active and not s.hidden and s.url_status = 'valid' and s.link_status = 'working'
    order by s.id
 $$;
 
--- Binds the caller's (anonymous) Supabase user to a student, if the access code matches.
-create or replace function public.redeem_access_code(p_student_id text, p_code text)
-returns table (student_id text, full_name text)
-language plpgsql volatile security definer
-set search_path = public, extensions, pg_temp
-as $$
-#variable_conflict use_column
-declare
-  v_uid   uuid := auth.uid();
-  v_hash  text;
-  v_name  text;
-  v_code  text;
-  v_state record;
-  v_fail  int;
-begin
-  if v_uid is null then raise exception 'not_signed_in'; end if;
-
-  -- Unknown, inactive or revoked → the same 'bad_code' as a wrong code (no hint which ids exist).
-  select a.code_hash, s.full_name into v_hash, v_name
-    from public.access_codes a
-    join public.students s on s.id = a.student_id
-   where a.student_id = p_student_id and a.revoked_at is null and s.active
-     for update of a;                                   -- one attempt at a time per student
-  if not found then raise exception 'bad_code'; end if;
-
-  select * into v_state from public._ac_state_get(p_student_id);
-  if v_state.locked_until is not null and v_state.locked_until > now() then raise exception 'locked'; end if;
-  v_fail := case when v_state.locked_until is not null then 0 else v_state.failed end;  -- an expired lock starts over
-
-  -- Codes are issued as XXXXX-XXXXX; accept lower case and missing/extra dashes or spaces.
-  v_code := upper(regexp_replace(coalesce(p_code, ''), '[^A-Za-z0-9]', '', 'g'));
-  if char_length(v_code) = 10 then v_code := left(v_code, 5) || '-' || right(v_code, 5); end if;
-
-  -- pgcrypto only understands the "$2a$" spelling of bcrypt. "$2b$"/"$2y$" (what bcryptjs and PHP write) are the same
-  -- algorithm for codes this short, so compare under the "$2a$" prefix. (Unknown prefixes make crypt() fall back to
-  -- an unrelated algorithm, which simply never matches.)
-  if v_hash ~ '^\$2[by]\$' then v_hash := '$2a$' || substr(v_hash, 5); end if;
-
-  if v_code = '' or crypt(v_code, v_hash) is distinct from v_hash then
-    v_fail := v_fail + 1;
-    if v_fail >= 5 then
-      perform public._ac_state_set(p_student_id, v_fail, now() + interval '15 minutes');
-      raise exception 'locked';
-    end if;
-    perform public._ac_state_set(p_student_id, v_fail, null);
-    raise exception 'bad_code';
-  end if;
-
-  update public.access_codes set failed_attempts = 0, locked_until = null where student_id = p_student_id;  -- also resets the counter
-  insert into public.student_sessions (auth_uid, student_id) values (v_uid, p_student_id)
-    on conflict (auth_uid) do update set student_id = excluded.student_id, created_at = now();
-  return query select p_student_id, v_name;
-end $$;
-
--- Who am I? Zero rows when this browser is not bound to a student.
-create or replace function public.whoami()
-returns table (student_id text, full_name text, section text, reviews_written int)
+create or replace function public.get_feedback_open()
+returns boolean
 language sql stable security definer
 set search_path = public, extensions, pg_temp
-as $$
-  select s.id, s.full_name, s.section,
-         (select count(*)::int from public.comments c where c.reviewer_id = s.id and c.status = 'published')
-    from public.students s
-   where s.id = public._current_student_id()
-$$;
+as $$ select s.feedback_open from public.settings s where s.id = 1 $$;
 
--- Forget this browser's binding.
-create or replace function public.sign_out_student()
-returns void
-language sql volatile security definer
+-- Public switches the site needs before sign-in (no personal data).
+create or replace function public.get_public_settings()
+returns table(feedback_open boolean, allow_extra_reviews boolean)
+language sql stable security definer
 set search_path = public, extensions, pg_temp
-as $$ delete from public.student_sessions where auth_uid = auth.uid() $$;
+as $$ select s.feedback_open, s.allow_extra_reviews from public.settings s where s.id = 1 $$;
 
 -- Is the caller a (non-anonymous) instructor?
 create or replace function public.is_instructor()
@@ -458,7 +506,115 @@ as $$
      and exists (select 1 from public.instructors i where lower(i.email) = lower(auth.jwt() ->> 'email'))
 $$;
 
--- Published comments on one project. Bound students and instructors only.
+-- Binds the caller's (anonymous) Supabase user to the student who owns this access code.
+-- A wrong code RETURNS (false, 'bad_code') instead of raising, so the failed attempt row is kept.
+create or replace function public.redeem_access_code(p_code text)
+returns table (ok boolean, error text, student_id text, full_name text)
+language plpgsql volatile security definer
+set search_path = public, extensions, pg_temp
+as $$
+#variable_conflict use_column
+declare
+  v_uid  uuid := auth.uid();
+  v_set  public.settings := public._settings();
+  v_id   text;
+  v_name text;
+begin
+  if v_uid is null then raise exception 'not_signed_in'; end if;
+  -- One attempt at a time per browser session, so parallel requests cannot slip past the per-session throttle.
+  perform pg_advisory_xact_lock(hashtext('fic.redeem.' || v_uid::text));
+
+  if (select count(*) from public.code_attempts a
+       where a.auth_uid = v_uid and not a.ok and a.at > now() - interval '15 minutes') >= v_set.max_failed_codes_per_session
+     or (select count(*) from public.code_attempts a
+          where not a.ok and a.at > now() - interval '15 minutes') >= v_set.max_failed_codes_global then
+    return query select false, 'rate_limited'::text, null::text, null::text;
+    return;
+  end if;
+
+  select s.id, s.full_name into v_id, v_name
+    from public.access_codes ac
+    join public.students s on s.id = ac.student_id
+   where ac.code_hash = public._access_code_hash(p_code) and ac.revoked_at is null and s.active;
+
+  if v_id is null then
+    insert into public.code_attempts (auth_uid, ok) values (v_uid, false);
+    return query select false, 'bad_code'::text, null::text, null::text;
+    return;
+  end if;
+
+  insert into public.code_attempts (auth_uid, ok) values (v_uid, true);
+  insert into public.student_sessions (auth_uid, student_id) values (v_uid, v_id)
+    on conflict (auth_uid) do update set student_id = excluded.student_id, created_at = now();
+  return query select true, null::text, v_id, v_name;
+end $$;
+
+-- Who am I? Zero rows when this browser is not bound to a student.
+create or replace function public.whoami()
+returns table (student_id text, full_name text, first_name text, last_name text, course text, section_code text,
+               reviews_completed int, reviews_required int, participating boolean)
+language sql stable security definer
+set search_path = public, extensions, pg_temp
+as $$
+  select s.id, s.full_name, s.first_name, s.last_name, s.course, s.section_code,
+         (select count(*)::int from public.comments c where c.reviewer_id = s.id and c.status = 'published'),
+         (select st.reviews_per_student from public.settings st where st.id = 1),
+         s.participating
+    from public.students s
+   where s.id = public._current_student_id()
+$$;
+
+-- Forget this browser's binding.
+create or replace function public.sign_out_student()
+returns void
+language sql volatile security definer
+set search_path = public, extensions, pg_temp
+as $$ delete from public.student_sessions where auth_uid = auth.uid() $$;
+
+-- The caller's Feedback Quest: pending + completed assignments, plus extra reviews (status 'extra').
+create or replace function public.my_quest()
+returns table (project_id text, status text, comment_id uuid, published int, capacity int)
+language plpgsql stable security definer
+set search_path = public, extensions, pg_temp
+as $$
+#variable_conflict use_column
+declare v_me text := public._current_student_id();
+begin
+  if v_me is null then raise exception 'not_signed_in'; end if;
+  return query
+    select x.pid, x.st, x.cid, public._published(x.pid), public._capacity(x.pid)
+      from (select a.project_id as pid, a.status as st, a.comment_id as cid
+              from public.assignments a
+             where a.reviewer_id = v_me and a.status in ('pending', 'completed')
+            union all
+            select c.project_id, 'extra', c.id
+              from public.comments c
+             where c.reviewer_id = v_me and c.extra and c.status = 'published') x
+     order by case x.st when 'completed' then 0 when 'extra' then 1 else 2 end, md5(v_me || x.pid);
+end $$;
+
+-- "Find My Next Review": the caller's pending assignment on the least-filled project (published / capacity),
+-- ties broken by md5(caller || project). Only projects that can still receive the review are offered.
+create or replace function public.next_review()
+returns table (project_id text)
+language plpgsql stable security definer
+set search_path = public, extensions, pg_temp
+as $$
+#variable_conflict use_column
+declare v_me text := public._current_student_id();
+begin
+  if v_me is null then raise exception 'not_signed_in'; end if;
+  return query
+    select q.pid
+      from (select a.project_id as pid, public._published(a.project_id) as pub, public._capacity(a.project_id) as cap
+              from public.assignments a
+             where a.reviewer_id = v_me and a.status = 'pending' and public._eligible(a.project_id)) q
+     where q.pub < q.cap
+     order by q.pub::numeric / q.cap, md5(v_me || q.pid)
+     limit 1;
+end $$;
+
+-- Published comments on one project (any course). Bound students and instructors only.
 create or replace function public.get_comments(p_project_id text)
 returns table (id uuid, project_id text, reviewer_id text, reviewer_name text, pronouns text, enjoyed text,
                suggestion text, created_at timestamptz, updated_at timestamptz)
@@ -493,7 +649,7 @@ begin
      order by c.created_at, c.id;
 end $$;
 
--- Leave feedback on a project. The checks run in the order the app expects.
+-- Leave feedback on a project. The checks run in the order supabase/CONTRACT.md lists.
 create or replace function public.submit_comment(p_project_id text, p_pronouns text, p_enjoyed text, p_suggestion text)
 returns table (id uuid, project_id text, reviewer_id text, reviewer_name text, pronouns text, enjoyed text,
                suggestion text, created_at timestamptz, updated_at timestamptz)
@@ -502,52 +658,66 @@ set search_path = public, extensions, pg_temp
 as $$
 #variable_conflict use_column
 declare
-  v_me   text := public._current_student_id();
-  v_set  public.settings := public._settings();
-  v_name text;
-  v_txt  record;
-  v_row  public.comments;
+  v_me      text := public._current_student_id();
+  v_set     public.settings := public._settings();
+  v_course  text;
+  v_name    text;
+  v_txt     record;
+  v_pub     int;
+  v_cap     int;
+  v_extra   bool := false;
+  v_row     public.comments;
 begin
   if v_me is null then raise exception 'not_signed_in'; end if;
   if not v_set.feedback_open then raise exception 'closed'; end if;
-  if not exists (select 1 from public.students s
-                  where s.id = p_project_id and s.active and s.url_status = 'valid') then
-    raise exception 'project_unavailable';
-  end if;
+  if not public._eligible(p_project_id) then raise exception 'project_unavailable'; end if;
   if p_project_id = v_me then raise exception 'self_review'; end if;
+  select s.course, s.full_name into v_course, v_name from public.students s where s.id = v_me;
+  if not exists (select 1 from public.students s where s.id = p_project_id and s.course = v_course) then
+    raise exception 'wrong_course';
+  end if;
   select * into v_txt from public._validate_feedback(p_pronouns, p_enjoyed, p_suggestion);
 
-  -- Lock BOTH students rows (project and reviewer), always in id order so two requests can never deadlock.
-  -- Every other submission touching the same project or the same reviewer waits here until this one commits,
-  -- and the counts below are then read fresh — so neither cap can be exceeded by simultaneous submissions.
-  perform 1 from public.students s where s.id = least(v_me, p_project_id)    for update;
-  perform 1 from public.students s where s.id = greatest(v_me, p_project_id) for update;
+  -- Lock BOTH students rows (reviewer and project), lower id first. Every other submission touching the same
+  -- project or the same reviewer — and every instructor plan for this course — waits here until this one commits,
+  -- and everything below is then read fresh, so the capacity can never be exceeded by simultaneous submissions.
+  perform public._lock_pair(v_me, p_project_id);
+  if not public._eligible(p_project_id) then raise exception 'project_unavailable'; end if;   -- changed while waiting
+  v_set := public._settings();
 
-  perform public._check_rate(v_me);   -- checked after the lock so two devices of one student cannot both slip through
+  perform public._check_rate(v_me);
   if exists (select 1 from public.comments c where c.project_id = p_project_id and c.reviewer_id = v_me) then
     raise exception 'already_reviewed';
   end if;
-  if (select count(*) from public.comments c where c.reviewer_id = v_me and c.status = 'published')
-       >= v_set.max_reviews_per_reviewer then
-    raise exception 'reviewer_limit';
-  end if;
-  if (select count(*) from public.comments c where c.project_id = p_project_id and c.status = 'published')
-       >= v_set.max_comments_per_project then
-    raise exception 'project_full';
-  end if;
 
-  select s.full_name into v_name from public.students s where s.id = v_me;
-  insert into public.comments (project_id, reviewer_id, reviewer_name, pronouns, enjoyed, suggestion)
-  values (p_project_id, v_me, v_name, v_txt.pronouns, v_txt.enjoyed, v_txt.suggestion)
+  v_pub := public._published(p_project_id);
+  v_cap := public._capacity(p_project_id);
+  if not exists (select 1 from public.assignments a
+                  where a.reviewer_id = v_me and a.project_id = p_project_id and a.status = 'pending') then
+    if v_set.allow_extra_reviews
+       and (select count(*) from public.comments c where c.reviewer_id = v_me and c.status = 'published') >= v_set.reviews_per_student
+       and v_pub + (select count(*) from public.assignments a
+                     where a.project_id = p_project_id and a.status = 'pending' and a.reviewer_id <> v_me) < v_cap then
+      v_extra := true;
+    else
+      raise exception 'not_assigned';
+    end if;
+  end if;
+  if v_pub >= v_cap then raise exception 'project_full'; end if;
+
+  insert into public.comments (course, project_id, reviewer_id, reviewer_name, pronouns, enjoyed, suggestion, extra)
+  values (v_course, p_project_id, v_me, v_name, v_txt.pronouns, v_txt.enjoyed, v_txt.suggestion, v_extra)
   returning * into v_row;
-  delete from public.reservations r where r.reviewer_id = v_me;
-  insert into public.write_events (student_id, kind) values (v_me, 'submit');
+  update public.assignments a
+     set status = 'completed', comment_id = v_row.id, updated_at = now()
+   where a.reviewer_id = v_me and a.project_id = p_project_id and a.status = 'pending';
+  insert into public.write_events (student_id, kind) values (v_me, case when v_extra then 'submit_extra' else 'submit' end);
 
   return query select v_row.id, v_row.project_id, v_row.reviewer_id, v_row.reviewer_name, v_row.pronouns,
                       v_row.enjoyed, v_row.suggestion, v_row.created_at, v_row.updated_at;
 end $$;
 
--- Edit your own published comment. Project, reviewer and reviewer name never change.
+-- Edit your own published comment. Project, reviewer and reviewer name never change; no slot is used.
 create or replace function public.update_comment(p_comment_id uuid, p_pronouns text, p_enjoyed text, p_suggestion text)
 returns table (id uuid, project_id text, reviewer_id text, reviewer_name text, pronouns text, enjoyed text,
                suggestion text, created_at timestamptz, updated_at timestamptz)
@@ -562,13 +732,16 @@ declare
   v_row public.comments;
 begin
   if v_me is null then raise exception 'not_signed_in'; end if;
-  select * into v_cur from public.comments c where c.id = p_comment_id and c.status = 'published' for update;
+  select * into v_cur from public.comments c where c.id = p_comment_id and c.status = 'published';
   if not found then raise exception 'not_found'; end if;
   if v_cur.reviewer_id <> v_me then raise exception 'not_author'; end if;
   if not (public._settings()).feedback_open then raise exception 'closed'; end if;
   select * into v_txt from public._validate_feedback(p_pronouns, p_enjoyed, p_suggestion);
   perform 1 from public.students s where s.id = v_me for update;   -- serialise this student's writes
   perform public._check_rate(v_me);
+  -- Removed by the instructor while we waited? Then it is no longer editable.
+  perform 1 from public.comments c where c.id = p_comment_id and c.status = 'published' for update;
+  if not found then raise exception 'not_found'; end if;
 
   update public.comments c
      set pronouns = v_txt.pronouns, enjoyed = v_txt.enjoyed, suggestion = v_txt.suggestion, updated_at = now()
@@ -580,71 +753,10 @@ begin
                       v_row.enjoyed, v_row.suggestion, v_row.created_at, v_row.updated_at;
 end $$;
 
--- "Find a World That Needs Feedback": suggests the eligible project with the fewest comments (counting other
--- reviewers' live reservations), preferring the section that has received less feedback, with a stable per-student
--- pseudo-random tiebreak. Reserves the suggestion for reservation_minutes. Zero rows when nothing is eligible.
-create or replace function public.recommend_project()
-returns table (project_id text)
-language plpgsql volatile security definer
-set search_path = public, extensions, pg_temp
-as $$
-#variable_conflict use_column
-declare
-  v_me  text := public._current_student_id();
-  v_set public.settings := public._settings();
-  v_pid text;
-begin
-  if v_me is null then raise exception 'not_signed_in'; end if;
-  if not v_set.feedback_open then raise exception 'closed'; end if;
-  if (select count(*) from public.comments c where c.reviewer_id = v_me and c.status = 'published')
-       >= v_set.max_reviews_per_reviewer then
-    raise exception 'reviewer_limit';
-  end if;
-
-  -- One recommendation at a time, so two students pressing the button together see each other's reservation.
-  perform pg_advisory_xact_lock(hashtext('feedback_classroom.recommend_project'));
-
-  with eligible as (
-    select s.id, s.section,
-           (select count(*) from public.comments c where c.project_id = s.id and c.status = 'published') as published
-      from public.students s
-     where s.active and s.url_status = 'valid' and s.id <> v_me
-       and not exists (select 1 from public.comments c where c.project_id = s.id and c.reviewer_id = v_me)
-  ), open_slots as (
-    select e.* from eligible e where e.published < v_set.max_comments_per_project
-  ), scored as (
-    select o.id,
-           o.published + (select count(*) from public.reservations r
-                           where r.project_id = o.id and r.reviewer_id <> v_me and r.expires_at > now()) as score,
-           avg(o.published) over (partition by o.section) as section_mean
-      from open_slots o
-  )
-  select sc.id into v_pid from scored sc order by sc.score, sc.section_mean, md5(v_me || sc.id) limit 1;
-
-  if v_pid is null then
-    delete from public.reservations r where r.reviewer_id = v_me;
-    return;
-  end if;
-  insert into public.reservations (reviewer_id, project_id, expires_at)
-  values (v_me, v_pid, now() + make_interval(mins => v_set.reservation_minutes))
-  on conflict (reviewer_id) do update set project_id = excluded.project_id, expires_at = excluded.expires_at;
-  return query select v_pid;
-end $$;
-
 
 -- =====================================================================================================================
 --  INSTRUCTOR FUNCTIONS (caller must be signed in by e-mail with an address in public.instructors)
 -- =====================================================================================================================
-
-create or replace function public._require_instructor()
-returns text
-language plpgsql stable security definer
-set search_path = public, extensions, pg_temp
-as $$
-begin
-  if not public.is_instructor() then raise exception 'not_instructor'; end if;
-  return lower(auth.jwt() ->> 'email');
-end $$;
 
 create or replace function public.admin_overview()
 returns jsonb
@@ -657,22 +769,173 @@ begin
     'settings', (select to_jsonb(s) - 'id' from public.settings s where s.id = 1),
     'students', coalesce((
       select jsonb_agg(jsonb_build_object(
-               'id', s.id, 'full_name', s.full_name, 'section', s.section, 'url_status', s.url_status,
-               'active', s.active,
-               'published_received', (select count(*) from public.comments c where c.project_id = s.id and c.status = 'published'),
-               'written',            (select count(*) from public.comments c where c.reviewer_id = s.id and c.status = 'published'))
+               'id', s.id, 'course', s.course, 'section', s.section, 'section_code', s.section_code,
+               'full_name', s.full_name, 'url_status', s.url_status, 'link_status', s.link_status,
+               'active', s.active, 'participating', s.participating, 'hidden', s.hidden,
+               'eligible', public._eligible(s.id), 'capacity', public._capacity(s.id),
+               'published_received', public._published(s.id),
+               'written', (select count(*) from public.comments c where c.reviewer_id = s.id and c.status = 'published'))
              order by s.id)
         from public.students s), '[]'::jsonb),
+    'assignments', coalesce((
+      select jsonb_agg(jsonb_build_object('reviewer_id', a.reviewer_id, 'project_id', a.project_id,
+                                          'course', a.course, 'status', a.status)
+             order by a.course, a.reviewer_id, a.project_id)
+        from public.assignments a), '[]'::jsonb),
     'comments', coalesce((
       select jsonb_agg(jsonb_build_object(
-               'id', c.id, 'project_id', c.project_id, 'reviewer_id', c.reviewer_id, 'reviewer_name', c.reviewer_name,
-               'pronouns', c.pronouns, 'enjoyed', c.enjoyed, 'suggestion', c.suggestion, 'status', c.status,
-               'removed_reason', c.removed_reason, 'created_at', c.created_at, 'updated_at', c.updated_at)
+               'id', c.id, 'course', c.course, 'project_id', c.project_id, 'reviewer_id', c.reviewer_id,
+               'reviewer_name', c.reviewer_name, 'pronouns', c.pronouns, 'enjoyed', c.enjoyed,
+               'suggestion', c.suggestion, 'status', c.status, 'extra', c.extra, 'removed_reason', c.removed_reason,
+               'created_at', c.created_at, 'updated_at', c.updated_at)
              order by c.created_at, c.id)
         from public.comments c), '[]'::jsonb));
 end $$;
 
--- Hide a comment (frees the slot on that project and in the reviewer's count).
+-- Replace the course's pending assignments with the plan computed on the dashboard (shared/allocation.ts), after
+-- re-checking every rule here. Completed assignments are never touched.
+create or replace function public.admin_apply_assignments(p_course text, p_capacities jsonb, p_assignments jsonb)
+returns table (inserted int, released int, kept int)
+language plpgsql volatile security definer
+set search_path = public, extensions, pg_temp
+as $$
+#variable_conflict use_column
+declare
+  v_actor    text := public._require_instructor();
+  v_set      public.settings;
+  v_caps     jsonb := coalesce(p_capacities, '{}'::jsonb);
+  v_plan     jsonb := coalesce(p_assignments, '[]'::jsonb);
+  v_r        text[];
+  v_p        text[];
+  v_bad      text;
+  v_released int;
+  v_kept     int;
+  v_revived  int;
+  v_new      int;
+begin
+  if p_course is null or p_course not in ('1101', '2241') then
+    raise exception 'invalid_plan: unknown course "%"', coalesce(p_course, '');
+  end if;
+
+  -- Serialise against other plans for this course, then against every submission in the course (submit_comment
+  -- locks the reviewer's and the project's students rows; both are in this course).
+  perform pg_advisory_xact_lock(hashtext('fic.assign.' || p_course));
+  perform 1 from public.students s where s.course = p_course order by s.id for update;
+  v_set := public._settings();
+
+  -- Shape of the inputs.
+  if jsonb_typeof(v_caps) <> 'object' then raise exception 'invalid_plan: capacities must be an object'; end if;
+  if jsonb_typeof(v_plan) <> 'array' then raise exception 'invalid_plan: assignments must be an array'; end if;
+  select k into v_bad from jsonb_each(v_caps) e(k, v)
+   where case when jsonb_typeof(e.v) <> 'number' then true
+              else (e.v)::text::numeric <> trunc((e.v)::text::numeric)
+                   or (e.v)::text::numeric < 0 or (e.v)::text::numeric > 100000 end
+   limit 1;
+  if v_bad is not null then raise exception 'invalid_plan: capacity of % is not a whole number', v_bad; end if;
+  if exists (select 1 from jsonb_array_elements(v_plan) e
+              where jsonb_typeof(e) <> 'object' or jsonb_typeof(e -> 'reviewer_id') is distinct from 'string'
+                 or jsonb_typeof(e -> 'project_id') is distinct from 'string') then
+    raise exception 'invalid_plan: every assignment needs a reviewer_id and a project_id';
+  end if;
+  select coalesce(array_agg(e ->> 'reviewer_id'), '{}'), coalesce(array_agg(e ->> 'project_id'), '{}')
+    into v_r, v_p
+    from jsonb_array_elements(v_plan) e;
+
+  -- Reviewers: on the roster, participating, in this course.
+  select x.r into v_bad from unnest(v_r) x(r)
+   where not exists (select 1 from public.students s
+                      where s.id = x.r and s.active and s.participating and s.course = p_course)
+   limit 1;
+  if v_bad is not null then raise exception 'invalid_plan: reviewer % is not an active participating student of %', v_bad, p_course; end if;
+  -- Projects: eligible and in this course.
+  select x.p into v_bad from unnest(v_p) x(p)
+   where not public._eligible(x.p)
+      or not exists (select 1 from public.students s where s.id = x.p and s.course = p_course)
+   limit 1;
+  if v_bad is not null then raise exception 'invalid_plan: project % is not eligible in %', v_bad, p_course; end if;
+  -- No self reviews, no duplicates, nothing already reviewed.
+  select x.r into v_bad from unnest(v_r, v_p) x(r, p) where x.r = x.p limit 1;
+  if v_bad is not null then raise exception 'invalid_plan: self review %', v_bad; end if;
+  select x.r || '>' || x.p into v_bad from unnest(v_r, v_p) x(r, p) group by x.r, x.p having count(*) > 1 limit 1;
+  if v_bad is not null then raise exception 'invalid_plan: duplicate pair %', v_bad; end if;
+  select x.r || '>' || x.p into v_bad from unnest(v_r, v_p) x(r, p)
+   where exists (select 1 from public.comments c where c.reviewer_id = x.r and c.project_id = x.p)
+   limit 1;
+  if v_bad is not null then raise exception 'invalid_plan: % already has a comment', v_bad; end if;
+  -- Capacities: projects of this course, at least base_slots, never below what is already published.
+  select e.k into v_bad from jsonb_each(v_caps) e(k, v)
+   where not exists (select 1 from public.students s where s.id = e.k and s.course = p_course)
+   limit 1;
+  if v_bad is not null then raise exception 'invalid_plan: capacity given for % which is not in %', v_bad, p_course; end if;
+  select e.k into v_bad from jsonb_each(v_caps) e(k, v)
+   where (e.v)::text::numeric::int < v_set.base_slots or (e.v)::text::numeric::int < public._published(e.k)
+   limit 1;
+  if v_bad is not null then raise exception 'invalid_plan: capacity of % is below % or below its published comments', v_bad, v_set.base_slots; end if;
+  -- Per reviewer: published + planned ≤ reviews_per_student.
+  select x.r into v_bad from unnest(v_r) x(r) group by x.r
+   having count(*) + (select count(*) from public.comments c where c.reviewer_id = x.r and c.status = 'published')
+          > v_set.reviews_per_student
+   limit 1;
+  if v_bad is not null then raise exception 'invalid_plan: reviewer % would have more than % reviews', v_bad, v_set.reviews_per_student; end if;
+  -- Per project: published + planned ≤ capacity (the new capacity when one is given).
+  select x.p into v_bad from unnest(v_p) x(p) group by x.p
+   having count(*) + public._published(x.p)
+          > coalesce((v_caps ->> x.p)::numeric::int, public._capacity(x.p))
+   limit 1;
+  if v_bad is not null then raise exception 'invalid_plan: project % would be over capacity', v_bad; end if;
+
+  -- Apply.
+  insert into public.project_slots (project_id, capacity, updated_at)
+  select e.k, (e.v)::text::numeric::int, now() from jsonb_each(v_caps) e(k, v)
+  on conflict (project_id) do update set capacity = excluded.capacity, updated_at = now();
+
+  update public.assignments a set status = 'released', updated_at = now()
+   where a.course = p_course and a.status = 'pending'
+     and not exists (select 1 from unnest(v_r, v_p) x(r, p) where x.r = a.reviewer_id and x.p = a.project_id);
+  get diagnostics v_released = row_count;
+
+  select count(*) into v_kept from public.assignments a, unnest(v_r, v_p) x(r, p)
+   where a.reviewer_id = x.r and a.project_id = x.p and a.status = 'pending';
+
+  update public.assignments a set status = 'pending', course = p_course, updated_at = now()
+    from unnest(v_r, v_p) x(r, p)
+   where a.reviewer_id = x.r and a.project_id = x.p and a.status not in ('pending', 'completed');
+  get diagnostics v_revived = row_count;
+
+  insert into public.assignments (course, reviewer_id, project_id, status)
+  select p_course, x.r, x.p, 'pending' from unnest(v_r, v_p) x(r, p)
+  on conflict (reviewer_id, project_id) do nothing;
+  get diagnostics v_new = row_count;
+
+  insert into public.audit_log (actor, action, detail)
+  values (v_actor, 'apply_assignments', jsonb_build_object('course', p_course, 'inserted', v_new + v_revived,
+          'released', v_released, 'kept', v_kept, 'pending', coalesce(array_length(v_r, 1), 0),
+          'capacities', v_caps));
+  return query select v_new + v_revived, v_released, v_kept;
+end $$;
+
+-- Mark a student as (not) taking part. Not taking part releases their pending assignments.
+create or replace function public.admin_set_participating(p_student_id text, p_participating boolean)
+returns void
+language plpgsql volatile security definer
+set search_path = public, extensions, pg_temp
+as $$
+declare v_actor text := public._require_instructor(); v_released int := 0;
+begin
+  perform 1 from public.students s where s.id = p_student_id for update;   -- waits for their submissions / plans
+  if not found then raise exception 'not_found'; end if;
+  update public.students s set participating = coalesce(p_participating, false) where s.id = p_student_id;
+  if not coalesce(p_participating, false) then
+    update public.assignments a set status = 'released', updated_at = now()
+     where a.reviewer_id = p_student_id and a.status = 'pending';
+    get diagnostics v_released = row_count;
+  end if;
+  insert into public.audit_log (actor, action, detail)
+  values (v_actor, 'set_participating', jsonb_build_object('student_id', p_student_id,
+          'participating', coalesce(p_participating, false), 'released', v_released));
+end $$;
+
+-- Hide a comment (frees the slot on that project); its assignment is released.
 create or replace function public.admin_remove_comment(p_comment_id uuid, p_reason text)
 returns void
 language plpgsql volatile security definer
@@ -680,17 +943,20 @@ set search_path = public, extensions, pg_temp
 as $$
 declare v_actor text := public._require_instructor(); v_c public.comments;
 begin
-  select * into v_c from public.comments c where c.id = p_comment_id for update;
+  select * into v_c from public.comments c where c.id = p_comment_id;
   if not found then raise exception 'not_found'; end if;
+  perform public._lock_pair(v_c.reviewer_id, v_c.project_id);                -- same lock order as submit_comment
   update public.comments c
      set status = 'removed', removed_reason = nullif(btrim(coalesce(p_reason, '')), ''), removed_at = now()
    where c.id = p_comment_id;
+  update public.assignments a set status = 'released', updated_at = now()
+   where a.comment_id = p_comment_id and a.status = 'completed';
   insert into public.audit_log (actor, action, detail)
   values (v_actor, 'remove_comment', jsonb_build_object('comment_id', p_comment_id, 'project_id', v_c.project_id,
                                                         'reviewer_id', v_c.reviewer_id, 'reason', p_reason));
 end $$;
 
--- Bring a removed comment back — only while the project is still below capacity.
+-- Bring a removed comment back — only while the project is below capacity. Its assignment is completed again.
 create or replace function public.admin_restore_comment(p_comment_id uuid)
 returns void
 language plpgsql volatile security definer
@@ -700,20 +966,18 @@ declare v_actor text := public._require_instructor(); v_c public.comments;
 begin
   select * into v_c from public.comments c where c.id = p_comment_id;
   if not found then raise exception 'not_found'; end if;
-  perform 1 from public.students s where s.id = v_c.project_id for update;   -- same lock as submit_comment
+  perform public._lock_pair(v_c.reviewer_id, v_c.project_id);                -- locks the project row
   select * into v_c from public.comments c where c.id = p_comment_id for update;
   if v_c.status = 'published' then return; end if;
-  if (select count(*) from public.comments c where c.project_id = v_c.project_id and c.status = 'published')
-       >= (public._settings()).max_comments_per_project then
-    raise exception 'project_full';
-  end if;
+  if public._published(v_c.project_id) >= public._capacity(v_c.project_id) then raise exception 'project_full'; end if;
   update public.comments c set status = 'published', removed_reason = null, removed_at = null where c.id = p_comment_id;
+  update public.assignments a set status = 'completed', updated_at = now() where a.comment_id = p_comment_id;
   insert into public.audit_log (actor, action, detail)
   values (v_actor, 'restore_comment', jsonb_build_object('comment_id', p_comment_id, 'project_id', v_c.project_id,
                                                          'reviewer_id', v_c.reviewer_id));
 end $$;
 
--- Open or close feedback for everyone.
+-- Pause or reopen all submissions and edits.
 create or replace function public.admin_set_open(p_open boolean)
 returns void
 language plpgsql volatile security definer
@@ -722,7 +986,19 @@ as $$
 declare v_actor text := public._require_instructor();
 begin
   update public.settings set feedback_open = coalesce(p_open, false) where id = 1;
-  insert into public.audit_log (actor, action, detail) values (v_actor, 'set_open', jsonb_build_object('open', p_open));
+  insert into public.audit_log (actor, action, detail) values (v_actor, 'set_open', jsonb_build_object('open', coalesce(p_open, false)));
+end $$;
+
+-- Allow (or stop) extra reviews by students who finished their assigned ones.
+create or replace function public.admin_set_allow_extra(p_allow boolean)
+returns void
+language plpgsql volatile security definer
+set search_path = public, extensions, pg_temp
+as $$
+declare v_actor text := public._require_instructor();
+begin
+  update public.settings set allow_extra_reviews = coalesce(p_allow, false) where id = 1;
+  insert into public.audit_log (actor, action, detail) values (v_actor, 'set_allow_extra', jsonb_build_object('allow', coalesce(p_allow, false)));
 end $$;
 
 
@@ -738,12 +1014,14 @@ begin
     select p.oid::regprocedure
       from pg_proc p join pg_namespace n on n.oid = p.pronamespace
      where n.nspname = 'public'
-       and p.proname in ('_settings', '_current_student_id', '_js_length', '_normalize_text', '_find_blocked_term',
-                         '_validate_feedback', '_check_rate', '_ac_seq', '_ac_state_set', '_ac_state_get', '_ac_sync',
-                         '_require_instructor', 'get_project_counts', 'redeem_access_code', 'whoami',
-                         'sign_out_student', 'is_instructor', 'get_comments', 'my_reviews', 'submit_comment',
-                         'update_comment', 'recommend_project', 'admin_overview', 'admin_remove_comment',
-                         'admin_restore_comment', 'admin_set_open')
+       and p.proname in ('_settings', '_current_student_id', '_eligible', '_published', '_capacity', '_lock_pair',
+                         '_normalize_access_code', '_access_code_hash', '_js_length', '_normalize_text',
+                         '_find_blocked_term', '_validate_feedback', '_check_rate', '_require_instructor',
+                         'get_public_status', 'get_feedback_open', 'get_public_settings', 'is_instructor', 'redeem_access_code', 'whoami',
+                         'sign_out_student', 'my_quest', 'next_review', 'get_comments', 'my_reviews',
+                         'submit_comment', 'update_comment', 'admin_overview', 'admin_apply_assignments',
+                         'admin_set_participating', 'admin_remove_comment', 'admin_restore_comment',
+                         'admin_set_open', 'admin_set_allow_extra')
   loop
     execute format('revoke all on function %s from public', f);
     begin
@@ -753,19 +1031,25 @@ begin
   end loop;
 end $$;
 
-grant execute on function public.get_project_counts()                          to anon, authenticated;
-grant execute on function public.redeem_access_code(text, text)                to authenticated;
-grant execute on function public.whoami()                                      to authenticated;
-grant execute on function public.sign_out_student()                            to authenticated;
-grant execute on function public.get_comments(text)                            to authenticated;
-grant execute on function public.my_reviews()                                  to authenticated;
-grant execute on function public.submit_comment(text, text, text, text)        to authenticated;
-grant execute on function public.update_comment(uuid, text, text, text)        to authenticated;
-grant execute on function public.recommend_project()                           to authenticated;
-grant execute on function public.is_instructor()                               to authenticated;
-grant execute on function public.admin_overview()                              to authenticated;
-grant execute on function public.admin_remove_comment(uuid, text)              to authenticated;
-grant execute on function public.admin_restore_comment(uuid)                   to authenticated;
-grant execute on function public.admin_set_open(boolean)                       to authenticated;
+grant execute on function public.get_public_status()                              to anon, authenticated;
+grant execute on function public.get_feedback_open()                              to anon, authenticated;
+grant execute on function public.get_public_settings()                            to anon, authenticated;
+grant execute on function public.redeem_access_code(text)                         to authenticated;
+grant execute on function public.whoami()                                         to authenticated;
+grant execute on function public.sign_out_student()                               to authenticated;
+grant execute on function public.my_quest()                                       to authenticated;
+grant execute on function public.next_review()                                    to authenticated;
+grant execute on function public.get_comments(text)                               to authenticated;
+grant execute on function public.my_reviews()                                     to authenticated;
+grant execute on function public.submit_comment(text, text, text, text)           to authenticated;
+grant execute on function public.update_comment(uuid, text, text, text)           to authenticated;
+grant execute on function public.is_instructor()                                  to authenticated;
+grant execute on function public.admin_overview()                                 to authenticated;
+grant execute on function public.admin_apply_assignments(text, jsonb, jsonb)      to authenticated;
+grant execute on function public.admin_set_participating(text, boolean)           to authenticated;
+grant execute on function public.admin_remove_comment(uuid, text)                 to authenticated;
+grant execute on function public.admin_restore_comment(uuid)                      to authenticated;
+grant execute on function public.admin_set_open(boolean)                          to authenticated;
+grant execute on function public.admin_set_allow_extra(boolean)                   to authenticated;
 
--- Done. Next: supabase/SETUP.md step 4 (add your instructor e-mail).
+-- Done. Next: supabase/SETUP.md (add your instructor e-mail, upload the roster and the access codes).

@@ -1,214 +1,201 @@
-# The Feedback Classroom — final report
+# Fairfield Interactive Worlds — implementation report
 
-Status words used below: **Built** (code exists) · **Tested** (an automated test or a looked-at screenshot exercised it) ·
-**Deployed** (verified on the public URL) · **Demo-only** · **Requires configuration** · **Not implemented**.
+Production upgrade of the Thanksgiving demo into a two-classroom peer-feedback site (MKTG 1101 + MKTG 2241).
+Report date: 2026-11-23. Rollback point: git tag `v1-demo-2026-11-19` (the first demo).
 
-## 1. Students imported — 58
+Status labels: **COMPLETED** (built) · **TESTED** (exercised by an automated test that was actually run, or a screenshot that was
+looked at) · **DEPLOYED** (verified on the public URL) · **DEMO ONLY** · **NEEDS CONFIGURATION** · **BLOCKED**.
 
-28 in MKTG 2241-01 and 30 in MKTG 2241-02, read from the workbook's second worksheet "Your Own Interactive World".
-The count check passed. Names are kept exactly as written in the sheet (for example *O'Leary*, *Van Wickler*, and
-*John* / *Paul Hayden*, which the sheet splits that way). Ids are deterministic, `s<section>-<position>` (e.g. `s01-07`),
-and are never reused.
+> **Bottom line.** The site is deployed in **Demo mode**: everything works, but comments are stored only in each visitor's own
+> browser. Shared commenting (Live mode) is fully built and passes its tests against the real database code on a local
+> Postgres, but it is **not switched on**: it needs your one-time Supabase project (section 17). The system is therefore
+> **not yet production-ready**. Shared persistence, sign-in, review permissions and database protections have been verified
+> locally, not on a real Supabase project.
 
-## 2. Valid project URLs — 35
+## 1. Final student counts by course — COMPLETED, TESTED
 
-18 in Section 01 and 17 in Section 02. Whitespace was trimmed from 9 links; nothing else was changed. On 2026-11-19,
-`npm run check-urls` requested each of the 35 once and all 35 answered with a success status.
+Source: `Take-Home Exam (final).xlsm`, read as a zip/XML file (macros are never executed; the workbook has no VBA part anyway).
+The older spreadsheet was not used. The workbook is git-ignored and is never published.
 
-## 3. Missing or invalid URLs — 23
+| Course | Students | Sections |
+|---|---:|---|
+| MKTG 1101 Principles of Marketing | 28 | one section |
+| MKTG 2241 Digital Marketing | 58 | 2241-01: 28 · 2241-02: 30 |
+| **Total** | **86** | |
 
-* **22 missing**: no link in the sheet. The chair is empty; the desk and name tag are shown.
-* **1 invalid**: Ava Goldberg (`s02-03`) submitted a `file:///Users/…` link. It points to a file on her own computer,
-  so it is treated as not working: empty chair, no project button. No replacement link was invented.
+Ids are stable: 1101 uses `pm-NN`, 2241 keeps the v1 ids `s01-NN` / `s02-NN`, so every 2241 student keeps the creature they
+had in the demo. Details: `docs/ROSTER_IMPORT_REPORT.md`.
 
-## 4. Classroom seats — 58
+## 2. Verified live website counts — COMPLETED, TESTED
 
-28 + 30, in two labelled sections of six desks per row. Section 01's last row has 4 desks, centred.
+`npm run audit-links` (2026-11-23) fetched every link over HTTPS, followed redirects one hop at a time, detected 404 and
+"no GitHub Pages site here" pages, then opened each one in Chrome to confirm that something visibly renders. All 81 screenshots
+were looked at. No student repository code was downloaded or run outside the browser.
 
-## 5. Creatures — 58 unique
+| Course | Entries | Working | Broken | Missing |
+|---|---:|---:|---:|---:|
+| MKTG 1101 | 28 | **28** | 0 | 0 |
+| MKTG 2241 | 58 | **53** | 0 | 5 |
+| **All** | 86 | **81** | 0 | 5 |
 
-There are 58 original mascots, 5 or 6 in each of 10 categories. Each has its own name, personality, ability,
-description, appearance, idle animation and hover move. A test checks that names, colours, body/ears/tail/accessory
-combinations and idle animations are all unique.
+Only *working* projects can receive reviews. Full table: `docs/FINAL_PROJECT_LINK_AUDIT.md`.
 
-* All 58 students have a creature assigned, so a creature never changes when a link arrives later.
-* **35 creatures are visible**, one at each desk with a valid link.
-* Assignment is fixed. The initial hand-out order is seeded, and the import script keeps every existing assignment.
-  A test re-imports a reversed sheet with a new student and confirms no assignment changes.
+## 3. Missing or broken project URLs — COMPLETED, TESTED
 
-No official Pokémon (or other franchise) artwork, names, designs or sprites were used.
+No broken links. Five MKTG 2241 students have no project link in the workbook: Ainsley Gondek (`s01-01`),
+Michael Gallagher (`s01-23`), Courtney Shyposh (`s02-08`), James Honekamp (`s02-13`) and Mason Carter (`s02-25`).
+Each keeps their desk and name tag with an empty chair, the review button is off, and a friendly message is shown. They still
+review four classmates. No replacement links were invented.
 
-## 6. Visualizations
+**Deviation to confirm:** the 2241 sheet now has a column F, "Published Website Link". For three students (DeBello, Rowland,
+Caruso), column E holds the GitHub *repository* page and F holds the published site, so F was used for those three. A
+repository page is not an interactive website. If you would rather treat them as missing, say so and re-run the import.
 
-| Item | Status |
-|---|---|
-| **3D classroom** (Three.js / React Three Fiber, loaded only when 3D is opened) | Built · Tested |
-| ↳ room details: daylight, big windows with sunbeams, bunting, Thanksgiving touches, section rugs and floor labels | |
-| ↳ camera: rotate (drag or button), zoom (wheel or button), pan (right-drag or two fingers), reset, smooth fly-to on search or selection | |
-| ↳ hover: tooltip, highlight ring, creature hover moves (wave, raise hand, bounce, sparkle, spin, float) plus small elemental particles | |
-| **2D classroom**: the accessible fallback and phone default; every desk is a labelled button | Built · Tested |
-| **Folded desk name plates** in both views (first name, last name, small section) | Built · Tested: no overlap or clipping at 1440, 1024 and 390 px |
-| Profile modal; Leave Your Thoughts form → preview → celebration | Built · Tested |
-| Welcome animation, floating title, falling leaves | Built · Tested |
-| Progress ring "Your reviews: n / 4" | Built · Tested |
-| Instructor charts | Built · Tested |
-| Optional ambient sound, synthesised and **off by default** | Built · not checked by ear |
-| Reduced motion: idle and hover animation off, camera jumps instead of flying | Built · Tested (2D CSS) |
+## 4. Correct use of 1101 Column E — COMPLETED, TESTED
 
-## 7. Commenting mode active — **Demo Mode**
+The 1101 importer checks the column-E header and reads only column E. **Column D (personal website) is never read into the
+roster.** There is no fallback to D. A unit test asserts this. One detail: Excel stores the part of a hyperlink after `#`
+separately, so the importer uses the cell's own text when it is a URL. Without this, links such as `…/#sample-day` would
+lose their fragment.
 
-The site shows a permanent banner: **"Demo Mode — Comments are stored only in this browser."** Comments live in that
-browser's localStorage and are not shared. Live mode is prepared but **not enabled**. The site cannot switch to it
-silently: it needs `VITE_FEEDBACK_MODE=live` plus two Supabase variables, and if live is requested but not configured
-the site stays in Demo mode and says so.
+## 5. Two-class homepage — COMPLETED, TESTED, DEPLOYED (Demo)
 
-## 8. Security protections
+"Fairfield Interactive Worlds", the requested subtitle, and two cards with "Enter Classroom":
+*Principles of Marketing / MKTG 1101 / 28 Students* and *Digital Marketing / MKTG 2241 / 58 Students*. Every page has a
+way back home. Routes: `#/`, `#/1101`, `#/2241`, `#/guide`, `#/instructor`; old `#/classroom` links open 2241.
 
-**Built in both modes**
-* The project button only appears for a re-validated http(s) URL. It opens in a new tab with
-  `rel="noopener noreferrer"`.
-* Student sites are never embedded (no iframes).
-* Feedback text is rendered as text, never as HTML.
-* The exam workbook is never committed (`*.xlsx` is git-ignored).
-* `check:publish` runs in CI and fails the build if a workbook, access-code sheet, bcrypt hash, or Supabase
-  secret/service-role key appears in the repo or the built site.
+## 6. Classroom seat counts — COMPLETED, TESTED
 
-**Live mode: built and tested on local Postgres 17, not yet on Supabase**
-* Students sign in with their name plus a private instructor-issued access code (10 characters).
-  * Only bcrypt hashes are stored. No function ever returns a code or hash.
-  * Codes are never shown in comments.
-  * A typed name is never trusted: the reviewer's name is copied from the roster on the server.
-  * 5 wrong tries lock that student's sign-in for 15 minutes.
-* Database lockdown:
-  * Every table has row-level security with **no** policies, and all table privileges are revoked from
-    `anon`/`authenticated`.
-  * Anonymous users can call exactly one function, which returns comment counts only.
-  * Every write goes through `SECURITY DEFINER` functions.
-* Rules enforced on the server:
-  * no self-review;
-  * one comment per reviewer per project;
-  * at most 4 comments per project;
-  * at most 4 reviews per reviewer;
-  * only the author can edit, and identity fields never change;
-  * text length and kind-language rules;
-  * rate limits of 15 s between writes and 20 per hour;
-  * a feedback open/closed switch.
-* Race safety: `submit_comment` locks the project and reviewer rows in a fixed order. Tests fire 10 simultaneous
-  4th-comment attempts, and exactly 1 succeeds.
-* Instructor moderation:
-  * Remove and restore comments, with an audit log.
-  * Protected by email sign-in plus an `instructors` table; anonymous sessions are refused.
-* Access codes are generated locally into git-ignored `private/` and handed out by you. Nothing is sent
-  automatically.
+* 1101: 28 desks, two blocks of 14, with "MKTG 1101 · Principles of Marketing" floor signs.
+* 2241: 58 desks, 28 + 30, in the original layout, with the section filter (2241-01 / 2241-02 / Both Sections). The two
+  sections form one review pool.
 
-## 9. Test results (2026-11-19, Windows 11, Chrome)
+Both the 3D and the 2D views are provided.
 
-| Suite | Result | What it covers |
+## 7. Character assignments — COMPLETED, TESTED
+
+28 new original creatures for 1101 (a "Harvest Market Fair" theme, ids c59–c86). Each has its own name, personality,
+ability and story. The 58 existing 2241 creatures are unchanged. The test checks 86 distinct names, with no creature
+shared between the rooms. Creatures are tied to the student id, so a changed URL never reassigns a creature. Nothing is
+franchise artwork, and there is no autoplay music.
+
+## 8. Four-review assignment status — COMPLETED, TESTED (DEMO ONLY until Live mode is configured)
+
+Every student gets **four** assigned classmates from their own course: never themselves and never the same project twice.
+The plan is computed by a deterministic max-flow planner (`shared/allocation.ts`), and in Live mode it is re-validated
+by the database (`admin_apply_assignments`).
+
+* 1101: 28 × 4 = **112** reviews over 28 projects (4 slots each).
+* 2241: 58 × 4 = **232** reviews over 53 projects.
+
+Completed reviews are kept when plans are regenerated. "Rebalance" also keeps valid unfinished ones. Students can be marked
+non-participating, and their slots are released. Infeasible plans are reported, not forced.
+
+Exploring is unlimited, with "Explore Another World" and "Find My Next Review". Extra unassigned reviews are off unless
+you switch them on in the dashboard.
+
+## 9. Fifth-slot allocations — COMPLETED, TESTED
+
+* 2241: 232 − 53 × 4 = **20** projects get one fifth slot, spread as evenly as possible.
+* 1101: none needed (112 = 28 × 4).
+
+A project never exceeds its slots. In Live mode this is enforced in the database with a per-project lock. A full project
+shows "All comment slots are full! …" and stays fully explorable; only "Leave Your Thoughts" is turned off.
+
+## 10. Shared database status — COMPLETED, TESTED locally · NEEDS CONFIGURATION
+
+`supabase/migrations/001_feedback_classroom.sql` contains the tables, row-level security with no table access, and
+security-definer RPCs only. That covers the course pools, assignments, slot capacity, the author-only edit, moderation,
+pause and an audit log.
+
+* `npm run test:db`: **50/50 passed** on a throw-away Postgres 17 with Supabase stand-in roles. The tests include the
+  migration being re-run on live data and v1 → v2 conversion.
+* It has **not** been run on a real Supabase project, because none exists yet.
+
+## 11. Authentication status — COMPLETED, TESTED locally · NEEDS CONFIGURATION
+
+**Students.** Students sign in with a **private access code** only: 12 random characters, `XXXX-XXXX-XXXX`.
+* There is no name picker, and typed names are never trusted.
+* Only SHA-256 hashes are stored.
+* Codes are generated into the git-ignored `private/` folder, and no roster-to-code list is published.
+* Wrong codes are throttled: 10 per browser session and 300 site-wide per 15 minutes.
+
+**Instructor.** The instructor uses an e-mail magic link and must be listed in `public.instructors`.
+
+## 12. Security test results — TESTED (locally)
+
+From the 50 database tests:
+* Anonymous visitors can call only three read-only functions, which return counts and on/off switches.
+* No table is readable or writable directly.
+* Self-reviews, other-course reviews, unassigned reviews, duplicate reviews and over-capacity reviews are refused by the
+  server.
+* Two simultaneous submissions to the last slot give exactly one success.
+* Only the author can edit.
+* Pause blocks submits and edits.
+* Access codes are never printed by the scripts.
+
+`npm run check:publish` passes. It scans the repository and the built site for workbooks, the private roster, code
+sheets, code-shaped strings, hash uploads and Supabase secret keys. `docs/PRIVACY_REVIEW.md` lists exactly what is public.
+
+**Known risk:** the site-wide code throttle means that someone deliberately sending 300 wrong codes within 15 minutes could
+block sign-in for everyone for up to 15 minutes. Signed-in students are unaffected. You can raise the limit with one SQL
+line (`update public.settings set max_failed_codes_global = 1000 where id = 1;`).
+
+## 13. Browser test results — TESTED
+
+| Suite | Browsers | Result |
 |---|---|---|
-| `npm test` (unit) | **21 / 21 pass** | Spreadsheet → roster (names and links match the workbook cell by cell); URL rules; 58 seats and 28/30; stable ids and creatures through re-import; creature uniqueness; comment wording; self, duplicate and capacity rules; editing; fair recommendation; completion maths |
-| `npm run test:db` | **32 / 32 pass** | Live-mode SQL on a throw-away **local Postgres 17 with Supabase stand-ins** (roles, `auth.uid()`, `auth.jwt()`). Covers: lockdown, access codes and lockout, every submit rule, concurrent 4th-comment and reviewer-cap races, recommendation, instructor gating, migration re-run. **Not run against a real Supabase project.** |
-| `npm run test:e2e` | **17 / 17 pass** | Real Chrome against the production build; see the list below |
-| `npm run check:publish` | **pass** | 105 files scanned |
-| GitHub Actions (Linux) | **pass** | the same unit, database and end-to-end suites, plus build and publication check, re-run in CI |
+| Unit tests (`npm test`) | — | 46/46 passed |
+| Lint + type-check | — | clean |
+| Demo-mode end-to-end, 20 scenarios (`npm run test:e2e`) | Chrome, Microsoft Edge | 20/20 each (re-run 2026-11-23 on the final code) |
+| same | Firefox, WebKit (Playwright builds) | 20/20 each (earlier on 2026-11-23, before last DB-only changes) |
+| **Live-mode** two-browser test (`npm run test:live`) | Chrome = student A, Edge = student B | **9/9 passed** |
 
-The 17 end-to-end scenarios:
-* welcome screen and banner;
-* exactly 58 seats with every name and section checked;
-* name tags never overlap (3 screen widths);
-* 23 empty seats with "This project hasn't arrived yet!" and no feedback button;
-* profile modal with a validated new-tab link and no iframes;
-* sign-in, validation, preview wording, submit and progress 1 / 4;
-* self-review blocked, duplicate becomes edit, editing keeps the slot, other reviewers cannot edit;
-* 4-comment limit and full message;
-* recommendation never picks your own, a reviewed, a full or an empty desk, and 8 reviewers got 8 different desks;
-* search and section filter;
-* keyboard (Tab, Enter, focus trap, Esc returns focus);
-* reduced motion;
-* phone at 390 × 844 (no sideways scroll, 3 desks per row, modal fits);
-* 3D: 58 seats and 35 creatures, zoom, rotate buttons, mouse-drag rotate, wheel zoom, right-drag pan, reset,
-  hover tooltip on the right creature, click opens the right profile;
-* instructor counts, shortfall text, both CSV exports, moderation, demo reset, workbook re-import preview
-  (0 changes);
-* Student Guide;
-* no console or page errors.
+The Live-mode test builds the production site in Live mode. It runs it against the real migration on a local Postgres,
+behind a small local stand-in for Supabase's API and sign-in server. It covers:
+* a public visitor;
+* instructor magic-link sign-in and saving both plans;
+* code-only sign-in;
+* **a review sent in Browser A appearing in Browser B**;
+* author-only editing;
+* the course boundary;
+* **two browsers sending to the last slot at the same moment** (exactly one succeeds);
+* moderation and pause;
+* no page errors.
 
-I also looked at the screenshots: welcome, 2D, 3D overview, 3D zoom/hover, modal, preview, full desk, phone,
-dashboard. That inspection found and fixed 5 problems the tests had missed:
-1. Creature tails rendered in the wrong place.
-2. The close button covered the comment counter.
-3. 3D click boxes picked the desk in front from low camera angles.
-4. Empty-seat cards looked as if they belonged to the next row.
-5. Creatures were too small in 3D.
+The screenshots in `tests/output/live/` were looked at.
 
-**Not tested**
-* Firefox and Safari.
-* Real phones and tablets (phone layout was tested with Chrome's mobile emulation only).
-* A screen reader (labels exist but were not listened to).
-* Frame rate on a weak laptop. 3D rendered in software (SwiftShader) without errors; about 470–1,000 draw calls
-  depending on the view.
-* The Live-mode browser code (`src/lib/liveBackend.ts`) has **never talked to a real server**.
-* Two-browser shared persistence. That needs Live mode.
+**Not tested:** real Safari (WebKit is close but not identical); phones were covered only by narrow-window screenshots; the
+real Supabase servers. The official PostgREST binary was not used locally (its download was not permitted on this machine),
+so the stand-in reproduces only the parts of Supabase's API the site uses.
 
-## 10. GitHub commit and deployment status
+## 14. GitHub commit information
 
-* Repository: https://github.com/AcademicCat16/share-your-thoughts-fairfield (was empty; first push).
-* Commits on `main`: `0d6243c` (application), `e3493a3` (CI fix: the first run failed the type-check on Linux because
-  of a Windows-only test package), then this report.
-* Workflow: `.github/workflows/deploy.yml` runs the unit, database and browser tests, the build and the safety
-  check, then deploys to Pages.
-* CI run for `e3493a3` (GitHub Actions run 44642170885), on Linux:
-  * **Built and Tested: pass.** Unit, database, build, publication check and the 17 Chrome tests all passed.
-  * **Deployed: no.** The deploy step failed with GitHub's message *"Ensure GitHub Pages has been enabled"*.
-    Pages is not switched on for this repository yet, and it can only be switched on in the repository settings.
+See the end of this report (filled in after the push).
 
-**To publish (one time, about 1 minute):**
-1. Open https://github.com/AcademicCat16/share-your-thoughts-fairfield/settings/pages
-2. Under **Build and deployment → Source**, choose **GitHub Actions**.
-3. Open the **Actions** tab, open the latest "Test and deploy" run, and click **Re-run all jobs**
-   (or push any commit).
+## 15. Deployment status
 
-## 11. Verified public URL
+See the end of this report (filled in after the push).
 
-**Not yet verified**: the address currently returns 404 because Pages is off. After the step above, the site will be
-at https://academiccat16.github.io/share-your-thoughts-fairfield/ and it will show the Demo Mode banner. Check that
-the banner is visible before sharing the link.
+## 16. Verified public website URL
 
-## 12. Remaining steps before live classroom use
+https://academiccat16.github.io/share-your-thoughts-fairfield/ — see the verification at the end of this report.
 
-1. **Decide about review capacity.** There are 35 projects × 4 = **140 review slots**, but 58 students × 4 = **232
-   reviews**. So **92 reviews cannot happen** even with full participation, and most students cannot reach 4 written
-   unless more projects arrive. Options:
-   * chase the 22 missing projects and Ava's local-only link;
-   * accept about 2–3 reviews per student;
-   * raise the per-project limit (it is a setting).
+## 17. Instructor actions still required
 
-   The dashboard recalculates this live.
-2. **Privacy decision.** The public site (marked `noindex`) and the public repo contain the 58 names and project links.
-   Visitors who aren't signed in can't read comments in Live mode, but the roster itself is public. Consider whether
-   that is acceptable, or make the repository private (GitHub Pages on a private repo needs a paid plan).
-3. **To use Live mode**, follow `supabase/SETUP.md`:
-   * create a free Supabase project;
-   * run the migration;
-   * enable Anonymous and Email sign-in;
-   * add your email to `instructors`;
-   * run `npm run live-sql` and `npm run access-codes`, paste both SQL files, and hand out the codes privately;
-   * set the three repository variables.
+1. **Decide on public visibility** (`docs/PRIVACY_REVIEW.md`). Names and project links of all 86 students are visible to
+   anyone with the link. Hide individuals if needed.
+2. **Confirm the column F choice** for DeBello, Rowland and Caruso (section 3).
+3. **To switch on shared commenting**, follow `supabase/SETUP.md` (about 30 minutes):
+   * create a free Supabase project, then run the migration in its SQL editor;
+   * turn on Anonymous Sign-Ins and Email, and set the Site URL to the Pages URL;
+   * add your e-mail as instructor;
+   * run `npm run live-sql` and `npm run access-codes` on your computer, and paste the two SQL files;
+   * on GitHub → Settings → Secrets and variables → Actions → **Variables**, add `VITE_FEEDBACK_MODE=live`,
+     `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` (the *publishable/anon* key — never the service-role/secret key);
+   * re-run the workflow;
+   * in the dashboard, **Generate reviewer assignments** for each course;
+   * complete the "Verify before telling students" checklist (two different browsers);
+   * hand out codes privately.
 
-   Then **test before telling students**:
-   * two different browsers or devices see the same comments;
-   * a wrong code is refused;
-   * a 5th comment is refused;
-   * the instructor dashboard and moderation work.
-
-   This has not been done, so Live mode must not be considered working until it is.
-4. Known Live-mode limitation: anyone who knows a student's id (visible in the page code) can trigger that student's
-   15-minute lock with 5 wrong codes. Low risk in a class, but tell students to report a lock. You can reset it with
-   `npm run access-codes -- --only <id>`.
-5. Before the activity, try it once on a typical student laptop, a phone, and Safari.
-
-**Design choices you may want to change**
-* Reviewers are limited to 4 reviews written. The brief sets 4 as a target; I made it a cap so the scarce slots are
-  shared.
-* The kind-language filter is a short word list. It is a speed bump, not moderation.
-* Comments are rephrased by fixed rules, not AI. If an answer can't be rephrased safely, it is shown word for word
-  after "What *Name* enjoyed most:" or "One idea to make it even better:".
+   Until then, tell students that Demo mode keeps comments only on their own device.

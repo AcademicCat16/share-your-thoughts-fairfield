@@ -1,12 +1,25 @@
 /**
  * Minimal, dependency-light .xlsx reader (an .xlsx file is a zip of XML parts).
  * Used by the Node import script AND by the instructor dashboard in the browser, so both
- * read the spreadsheet in exactly the same way. Reads cell values only (no formulas, no styles).
+ * read the spreadsheet in exactly the same way. Reads cell values and hyperlink targets (no formulas, no styles,
+ * and never any macros: an .xlsm's VBA part is simply not read).
  */
 import { unzipSync, strFromU8 } from 'fflate'
 
 export type Cell = string | number | boolean | null
-export interface Sheet { name: string; rows: Cell[][] }
+export interface Sheet {
+  name: string
+  rows: Cell[][]
+  /** Hyperlink targets by cell reference ("E16" → "https://…"). A cell's text can differ from its link. */
+  links?: Record<string, string>
+}
+
+/** "E", 16 → "E16" (0-based column, 1-based row). */
+export function cellRef(col: number, row1: number): string {
+  let s = ''; let n = col + 1
+  while (n > 0) { const r = (n - 1) % 26; s = String.fromCharCode(65 + r) + s; n = Math.floor((n - 1) / 26) }
+  return `${s}${row1}`
+}
 
 const ENTITIES: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" }
 export function decodeXml(s: string): string {
@@ -62,6 +75,21 @@ export function readWorkbook(data: Uint8Array): Sheet[] {
     const path = rid ? relTarget.get(rid) : undefined
     const xml = path ? get(path) : undefined
     if (!xml) { sheets.push({ name, rows: [] }); continue }
+    const links: Record<string, string> = {}
+    const sheetRels = get(path!.replace(/([^/]+)$/, '_rels/$1.rels')) ?? ''
+    const linkTarget = new Map<string, string>()
+    for (const lm of sheetRels.matchAll(/<Relationship\b[^>]*>/g)) {
+      const id = attr(lm[0], 'Id'); const target = attr(lm[0], 'Target')
+      if (id && target && /Type="[^"]*\/hyperlink"/.test(lm[0])) linkTarget.set(id, target)
+    }
+    for (const hm of xml.matchAll(/<hyperlink\b[^>]*\/?>/g)) {
+      const ref = attr(hm[0], 'ref'); const rid2 = attr(hm[0], 'r:id')
+      const location = attr(hm[0], 'location')
+      const base = rid2 ? linkTarget.get(rid2) : undefined
+      // Excel stores a link's #fragment separately, in the `location` attribute.
+      const target = base ? (location && !base.includes('#') ? `${base}#${location}` : base) : undefined
+      if (ref && target) for (const one of expandRange(ref)) links[one] = target
+    }
     const rows: Cell[][] = []
     for (const r of xml.matchAll(/<row\b([^>]*)>([\s\S]*?)<\/row>|<row\b([^>]*)\/>/g)) {
       const rowAttrs = r[1] ?? r[3] ?? ''
@@ -85,7 +113,18 @@ export function readWorkbook(data: Uint8Array): Sheet[] {
       rows[rIndex] = row
     }
     for (let i = 0; i < rows.length; i++) if (!rows[i]) rows[i] = []
-    sheets.push({ name, rows })
+    sheets.push({ name, rows, links })
   }
   return sheets
+}
+
+/** "E2" → ["E2"]; "E2:E4" → ["E2","E3","E4"] (hyperlinks may cover a range). */
+function expandRange(ref: string): string[] {
+  const [a, b] = ref.split(':')
+  if (!b) return [a]
+  const ca = colIndex(a), cb = colIndex(b)
+  const ra = Number(a.replace(/^[A-Z]+/, '')), rb = Number(b.replace(/^[A-Z]+/, ''))
+  const out: string[] = []
+  for (let r = ra; r <= rb; r++) for (let c = ca; c <= cb; c++) out.push(cellRef(c, r))
+  return out
 }

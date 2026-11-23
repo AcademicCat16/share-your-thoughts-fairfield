@@ -10,3 +10,8 @@ private/
 tests/output/
 .pg-test/
 *.log
+*.xlsm
+*.xls
+*.xlsb
+~$*
+dist-live/

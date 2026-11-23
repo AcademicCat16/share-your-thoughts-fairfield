@@ -3,15 +3,17 @@
  * Live mode enforces the SAME rules inside Postgres (supabase/migrations/*.sql). Keep both in sync —
  * tests/unit/rules.test.ts and tests/db/*.test.ts check each side.
  */
-export const MAX_COMMENTS_PER_PROJECT = 4
-/** Target reviews per reviewer; also the cap, so scarce slots are shared fairly (see report: capacity < 232). */
-export const MAX_REVIEWS_PER_REVIEWER = 4
-export const TARGET_REVIEWS_PER_STUDENT = 4
+/** Standard feedback slots every eligible project starts with. Extra slots are opened by the allocation plan. */
+export const BASE_SLOTS = 4
+/** Reviews every student must complete (each for a different classmate, in their own course). */
+export const REVIEWS_PER_STUDENT = 4
+/** @deprecated names kept for older call sites */
+export const MAX_COMMENTS_PER_PROJECT = BASE_SLOTS
+export const MAX_REVIEWS_PER_REVIEWER = REVIEWS_PER_STUDENT
+export const TARGET_REVIEWS_PER_STUDENT = REVIEWS_PER_STUDENT
 export const TEXT_MIN = 15
 export const TEXT_MAX = 800
 export const PRONOUNS_MAX = 40
-/** Soft reservation made by "Find a World That Needs Feedback" (minutes). Steers others away; never blocks a submission. */
-export const RESERVATION_MINUTES = 20
 /** Rate limits (enforced server-side in Live mode). */
 export const MIN_SECONDS_BETWEEN_WRITES = 15
 export const MAX_WRITES_PER_HOUR = 20
@@ -19,22 +21,25 @@ export const MAX_WRITES_PER_HOUR = 20
 export type RuleError =
   | 'not_signed_in' | 'self_review' | 'project_full' | 'already_reviewed' | 'reviewer_limit'
   | 'project_unavailable' | 'invalid_text' | 'inappropriate' | 'rate_limited' | 'not_author'
-  | 'closed' | 'bad_code' | 'locked' | 'not_instructor' | 'not_found'
+  | 'closed' | 'bad_code' | 'locked' | 'not_instructor' | 'not_found' | 'wrong_course' | 'not_assigned' | 'invalid_plan'
 
 export const RULE_MESSAGES: Record<RuleError, string> = {
   not_signed_in: 'Please sign in with your access code first.',
   self_review: "That's your own world! You can't review your own project.",
-  project_full: 'This desk is full of thoughtful feedback! Thank you for helping your classmates.',
+  project_full: 'All comment slots are full! This project has received its feedback for now. You can still explore the website and read what your classmates shared!',
   already_reviewed: "You've already left your thoughts here. You can edit your comment instead.",
-  reviewer_limit: `You've written ${MAX_REVIEWS_PER_REVIEWER} reviews — thank you! That's the goal reached.`,
+  reviewer_limit: `You've completed your ${REVIEWS_PER_STUDENT} reviews — thank you!`,
   project_unavailable: "This project hasn't arrived yet!",
   invalid_text: `Each answer needs ${TEXT_MIN}–${TEXT_MAX} characters.`,
   inappropriate: 'Please keep feedback kind and respectful — try rewording that answer.',
-  rate_limited: 'Whoa, speedy! Please wait a few seconds before sending again.',
+  rate_limited: 'Whoa, speedy! Please wait a little before trying again.',
   not_author: 'Only the person who wrote this comment can edit it.',
   closed: 'Feedback is closed right now.',
   bad_code: "That access code didn't match. Check it and try again.",
   locked: 'Too many tries. Please wait 15 minutes, or ask your instructor.',
+  wrong_course: 'You can review only projects in your own course — but you are welcome to explore this one!',
+  not_assigned: "This world isn't on your Feedback Quest list — but you can explore it as much as you like! Use “Find My Next Review” to reach your assigned projects.",
+  invalid_plan: 'The review plan was rejected by the server (see the details on the dashboard).',
   not_instructor: 'Instructor sign-in required.',
   not_found: 'That item could not be found.',
 }
@@ -49,7 +54,7 @@ export const BLOCKED_TERMS = [
 ]
 
 export function normalizeText(s: string): string {
-  return s.replace(/\r\n?/g, '\n').replace(/[ \t ]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim()
+  return s.replace(/\r\n?/g, '\n').replace(/[ \t\u00a0]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim()
 }
 
 export function findBlockedTerm(s: string): string | null {

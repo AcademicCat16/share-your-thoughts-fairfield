@@ -1,50 +1,58 @@
 import { CREATURES } from '../../shared/creatures.ts'
+import { CREATURES_1101 } from '../../shared/creatures1101.ts'
 import { CreatureSvg } from '../components/CreatureSvg.tsx'
 import { go, useApp, MODE } from '../lib/app.tsx'
 
-const STEPS = [
-  { t: 'Enter the classroom.', d: 'Press “Enter the Classroom” on the welcome screen. You’ll see every desk from both sections.' },
-  { t: 'Find a classmate’s creature.', d: 'Look around, search for a name, or press “Find a World That Needs Feedback” and we’ll pick a classmate who needs reviews.' },
-  { t: 'Click the creature.', d: 'Each creature belongs to one classmate. Their name is on the folded name card on the desk.' },
-  { t: 'Explore their interactive website.', d: 'Press “Explore This World”. Their website opens in a new tab. Take your time and try things out!' },
-  { t: 'Return to the classroom.', d: 'Come back to this tab when you’re done exploring. The classroom is waiting right where you left it.' },
-  { t: 'Click “Leave Your Thoughts.”', d: MODE === 'live' ? 'The first time, choose your name and type the private access code from your instructor.' : 'In this test version, choose which classmate you are. (The real version uses a private access code.)' },
-  { t: 'Write one compliment and one helpful suggestion.', d: 'Be specific! You’ll see a preview of your comment before you send it.' },
-  { t: 'Submit — then repeat until you’ve reviewed four different classmates.', d: 'Your progress shows at the top: “Your reviews: 2 / 4”.' },
+/** Each step has a tiny picture so students can follow along without reading much. */
+const STEPS: { t: string; d: string; pic: string }[] = [
+  { t: 'Choose your classroom.', d: 'On the home page, press “Enter Classroom” on Principles of Marketing (1101) or Digital Marketing (2241).', pic: '🏫' },
+  { t: 'Explore the colorful classroom.', d: 'Drag to look around, scroll to zoom — or switch to the simple 2D view.', pic: '🔭' },
+  { t: 'Click a classmate’s creature.', d: 'Each creature belongs to one classmate. Their name is on the folded name card on the desk.', pic: '🐾' },
+  { t: 'Visit their interactive website.', d: 'Press “Explore This World”. It opens in a new tab — try things out!', pic: '🌍' },
+  { t: 'Return to the classroom.', d: 'Come back to this tab. The classroom is right where you left it.', pic: '↩️' },
+  { t: 'Leave a compliment and a helpful suggestion.', d: MODE === 'live' ? 'Press “Leave Your Thoughts”. The first time, type the private access code from your instructor.' : 'Press “Leave Your Thoughts”. (In this demo you choose a classmate to test as; the real version uses a private access code.)', pic: '💬' },
+  { t: 'Complete four reviews.', d: 'Press “Find My Next Review” to jump to the next classmate on your Feedback Quest.', pic: '⭐' },
+  { t: 'Keep exploring other students’ worlds!', d: 'Press “Explore Another World” any time — there is no limit on exploring.', pic: '✨' },
 ]
 
-const GOOD = [
-  ['Be kind and specific.', '“I loved how the colors change when I pick a flavor” is more helpful than “nice site.”'],
-  ['Make your suggestion useful.', 'Suggest one thing the creator could actually try, like “add a back button on the recipe page.”'],
-  ['You can’t review your own project.', 'Your own desk shows your feedback, but the button is turned off for you.'],
-  ['Each project can receive four reviews.', 'When a desk has four, it’s full — pick another world. Comments can be edited without using up a spot.'],
-  ['You can review either section.', 'Classmates in 2241-01 and 2241-02 are all in the same room.'],
-  ['One comment per classmate.', 'If you want to change what you wrote, open their desk and press “Edit my comment.”'],
+const GOOD: [string, string][] = [
+  ['You cannot review your own website.', 'Your own desk shows your feedback, but the button is off for you.'],
+  ['You can review only projects in your course.', 'Principles (1101) students review 1101 projects; Digital Marketing (2241) students review 2241 projects. You can still explore both rooms.'],
+  ['Digital Marketing sections 01 and 02 are combined.', 'Both sections share one classroom and one review pool.'],
+  ['Each student completes four reviews.', 'Four different classmates. Your progress shows at the top: “Your Feedback Quest: 2 / 4 completed”.'],
+  ['Some projects may already have full comment slots.', 'Full projects can still be explored, and you can read what classmates shared.'],
+  ['No installation or programming is required.', 'Everything happens right here in your web browser.'],
 ]
 
 export function GuidePage() {
   const { reducedMotion } = useApp()
-  const helpers = [CREATURES[3], CREATURES[17], CREATURES[29], CREATURES[44]]
+  const helpers = [CREATURES[3], CREATURES_1101[4], CREATURES[29], CREATURES_1101[17]]
   return (
-    <main className="guide" id="main" tabIndex={-1}>
+    <main className="guide" id="main" tabIndex={-1} data-testid="guide">
       <header className="guide-hero">
         <div className="guide-pals" aria-hidden="true">{helpers.map((c) => c && <CreatureSvg key={c.id} spec={c} size={86} animate={!reducedMotion} />)}</div>
         <h1>Student Guide</h1>
-        <p className="lead">Visit your classmates’ worlds and leave them some thoughtful Thanksgiving feedback. Everything happens right here on this page.</p>
+        <p className="lead">Explore your classmates’ worlds and leave them thoughtful feedback. It takes eight easy steps.</p>
       </header>
       <ol className="steps">
         {STEPS.map((s, i) => (
-          <li key={i} className="step">
+          <li key={i} className="step" data-testid="guide-step">
             <span className="step-num" aria-hidden="true">{i + 1}</span>
             <div><h2><span className="sr-only">Step {i + 1}: </span>{s.t}</h2><p>{s.d}</p></div>
+            <span className="step-pic" aria-hidden="true">{s.pic}</span>
           </li>
         ))}
       </ol>
       <section className="good-feedback" aria-labelledby="gf">
         <h2 id="gf">Good to know</h2>
         <ul>{GOOD.map(([h, d]) => <li key={h}><strong>{h}</strong> {d}</li>)}</ul>
+        <div className="example-comment" aria-label="Example of good feedback">
+          <p className="eyebrow">A good review looks like this</p>
+          <p><strong>Compliment:</strong> “I loved how the colors change when I pick a flavor.”</p>
+          <p><strong>Suggestion:</strong> “Add a back button on the recipe page.”</p>
+        </div>
       </section>
-      <p className="guide-cta"><button type="button" className="btn primary big" onClick={() => go('classroom')}>Go to the classroom</button></p>
+      <p className="guide-cta"><button type="button" className="btn primary big" onClick={() => go('home')}>Choose my classroom</button></p>
     </main>
   )
 }
